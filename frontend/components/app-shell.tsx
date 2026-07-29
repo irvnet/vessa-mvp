@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="border-b border-border bg-card">
+      <header className="sticky top-0 z-10 border-b border-border bg-card">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-3">
           <Link href="/" className="font-heading text-lg font-bold text-clay">
             Vessa

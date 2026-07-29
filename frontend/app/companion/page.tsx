@@ -91,7 +91,7 @@ export default function CompanionPage() {
           </div>
         </header>
 
-        <div className="flex-1 space-y-5 overflow-y-auto pb-4">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-4">
           {messages.map((m, i) =>
             m.role === "bot" ? (
               <div
