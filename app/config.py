@@ -1,7 +1,25 @@
 import os
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Rose's real-world timezone (Jersey City, NJ) — hardcoded alongside the
+# single hardcoded receiver elsewhere (DEFAULT_CONTEXT, SAMPLE_PROFILE).
+_RECEIVER_TZ = ZoneInfo("America/New_York")
+
+
+def now_local() -> datetime:
+    """The receiver's actual local wall-clock time — NOT the deployment
+    server's system time. A bare datetime.now() returns whatever timezone
+    the server itself is configured for (this project's EC2 instance runs
+    UTC, the AWS/Ubuntu default), which silently broke every time-grounding
+    claim once deployed, despite working correctly in local dev on an
+    Eastern-configured machine. Returned naive (no tzinfo) so it stays
+    directly comparable to due_at values, which come from the frontend's
+    naive datetime-local inputs (also implicitly Eastern)."""
+    return datetime.now(_RECEIVER_TZ).replace(tzinfo=None)
 
 LLM_MODEL = "gpt-4o-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"  # used only if/when semantic memory search is added

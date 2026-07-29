@@ -3,9 +3,8 @@ three independent scripts each update only their own key, so running one
 suite alone must never blank out another suite's last-cached result."""
 
 import json
-from datetime import datetime
 
-from app.config import EVAL_RESULTS_PATH
+from app.config import EVAL_RESULTS_PATH, now_local
 
 
 def load_eval_summaries() -> dict:
@@ -16,6 +15,6 @@ def load_eval_summaries() -> dict:
 
 def save_eval_summary(suite: str, summary: dict) -> None:
     data = load_eval_summaries()
-    data[suite] = {**summary, "ran_at": datetime.now().isoformat()}
+    data[suite] = {**summary, "ran_at": now_local().isoformat()}
     EVAL_RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     EVAL_RESULTS_PATH.write_text(json.dumps(data, indent=2))
