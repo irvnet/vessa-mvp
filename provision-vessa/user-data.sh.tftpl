@@ -1,0 +1,68 @@
+#!/bin/bash
+set -euo pipefail
+exec > >(tee -a /var/log/vessa-bootstrap.log) 2>&1
+echo "==> Vessa bootstrap starting: $(date)"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y git curl ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https
+
+# --- Caddy (auto-TLS reverse proxy in front of the backend) ---
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+apt-get update -y
+apt-get install -y caddy
+
+cat > /etc/caddy/Caddyfile <<'CADDYEOF'
+${backend_hostname} {
+    reverse_proxy 127.0.0.1:8010
+}
+CADDYEOF
+systemctl restart caddy
+
+# --- uv (as the ubuntu user, not root) ---
+sudo -u ubuntu bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
+
+# --- clone + configure the app ---
+sudo -u ubuntu git clone ${github_repo_url} /home/ubuntu/vessa
+
+cat > /home/ubuntu/vessa/.env <<'ENVEOF'
+OPENAI_API_KEY=${openai_api_key}
+ALLOWED_ORIGINS=http://localhost:3000
+ENVEOF
+chown ubuntu:ubuntu /home/ubuntu/vessa/.env
+chmod 600 /home/ubuntu/vessa/.env
+# Real ALLOWED_ORIGINS (the deployed Vercel URL) gets set in a one-time manual
+# step after the frontend is live — see DEPLOY.md. It can't be known here,
+# and re-running Terraform doesn't re-run this script on an already-booted
+# instance, so this is intentionally a placeholder, not a bug.
+
+sudo -u ubuntu bash -c 'cd /home/ubuntu/vessa && /home/ubuntu/.local/bin/uv sync'
+chmod +x /home/ubuntu/vessa/scripts/*.sh
+
+# --- systemd unit ---
+cat > /etc/systemd/system/vessa.service <<'UNITEOF'
+[Unit]
+Description=Vessa companion backend (FastAPI + Uvicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/vessa
+EnvironmentFile=/home/ubuntu/vessa/.env
+ExecStartPre=/home/ubuntu/vessa/scripts/check_env.sh
+ExecStart=/home/ubuntu/.local/bin/uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8010
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+
+systemctl daemon-reload
+systemctl enable --now vessa.service
+echo "==> Vessa bootstrap complete: $(date)"
