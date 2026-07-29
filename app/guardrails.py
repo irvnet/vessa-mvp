@@ -16,6 +16,7 @@ from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from app.config import LLM_MODEL, load_env
+from app.visibility import EventType, log_event
 
 load_env()
 
@@ -174,6 +175,16 @@ def input_rails_middleware(state: AgentState, runtime: Runtime) -> dict | None:
 
     decision = run_input_rails(str(last_message.content))
     if decision.action in ("escalate", "redirect"):
+        event_type = (
+            EventType.GUARDRAIL_ESCALATED if decision.action == "escalate" else EventType.GUARDRAIL_REDIRECTED
+        )
+        log_event(
+            runtime.store,
+            runtime.context.care_team_id,
+            event_type.value,
+            f"{decision.rail}: {decision.reason}",
+            is_concern=(decision.action == "escalate"),
+        )
         return {"messages": [AIMessage(decision.message)], "jump_to": "end"}
     return None
 
@@ -214,5 +225,11 @@ def output_rails_middleware(state: AgentState, runtime: Runtime) -> dict | None:
 
     final_text, actions = run_output_rails(str(last_message.content))
     if actions:
+        log_event(
+            runtime.store,
+            runtime.context.care_team_id,
+            EventType.GUARDRAIL_OUTPUT_REPAIRED.value,
+            "; ".join(actions),
+        )
         return {"messages": [AIMessage(content=final_text, id=last_message.id)]}
     return None

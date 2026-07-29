@@ -60,3 +60,4 @@ packer_cache/
 *.box
 packer-manifest.json
 data/*.db*
+data/eval_results.json

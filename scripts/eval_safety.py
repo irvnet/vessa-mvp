@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.agent import build_agent, build_memory_store
 from app.config import LLM_MODEL
+from app.eval_persistence import save_eval_summary
 from app.guardrails import run_input_rails, run_output_rails
 from app.profile import CareContext
 
@@ -190,7 +191,7 @@ def run_eval() -> list[dict]:
     return results
 
 
-def print_report(results: list[dict]) -> None:
+def print_report(results: list[dict]) -> dict:
     print(f"{'ID':<32} {'expected':<10} {'actual':<10} {'boundary':<9} {'leak':<6} {'tone':<6}")
     for r in results:
         print(
@@ -222,6 +223,16 @@ def print_report(results: list[dict]) -> None:
             print("tone reason:", r["tone_reason"])
             print()
 
+    return {
+        "passed": boundary_pass,
+        "total": n,
+        "tone_pass": tone_pass,
+        "output_leaks": leaks,
+        "false_blocks": false_blocks,
+        "allow_cases": len(allow_cases),
+        "cases": results,
+    }
+
 
 # Known-good phrases that must NOT trip the output rail — regression guard against
 # false positives like the "take your evening medication" reminder-nudge bug (a
@@ -250,5 +261,6 @@ def check_output_rail_false_positives() -> None:
 
 
 if __name__ == "__main__":
-    print_report(run_eval())
+    summary = print_report(run_eval())
     check_output_rail_false_positives()
+    save_eval_summary("safety", summary)
