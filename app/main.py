@@ -1,4 +1,7 @@
 import logging
+import subprocess
+import sys
+from collections import Counter
 from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -13,6 +16,8 @@ from datetime import datetime
 
 from app.agent import generate_checkin
 from app.bootstrap import build_compiled_agent, get_memory_store
+from app.config import ROOT, SQLITE_DB_PATH
+from app.eval_persistence import load_eval_summaries
 from app.profile import CareContext, get_profile
 from app.reminders import (
     CAREGIVER_NOTIFICATIONS,
@@ -24,7 +29,7 @@ from app.reminders import (
     update_reminder,
 )
 from app.scheduler import companion_thread_id, start_scheduler
-from app.visibility import status_badge, todays_events
+from app.visibility import list_events, status_badge, todays_events
 
 logger = logging.getLogger(__name__)
 
@@ -468,3 +473,64 @@ def today() -> TodayView:
             EventView(type=e.type, summary=e.summary, at=e.at, is_concern=e.is_concern) for e in events
         ],
     )
+
+
+# --- Proof surface — makes safety/quality provable in-app, not just in a
+# terminal or LangSmith, so a demo-day question can be answered live. ---
+
+EVAL_SUITES = ("safety", "grounding", "memory")
+
+
+@app.get("/proof/eval-results")
+def get_eval_results() -> dict:
+    return load_eval_summaries()
+
+
+@app.post("/proof/run-eval")
+def run_eval(suite: str = "all") -> dict:
+    suites = EVAL_SUITES if suite == "all" else (suite,)
+    if any(s not in EVAL_SUITES for s in suites):
+        raise HTTPException(status_code=400, detail=f"suite must be one of {EVAL_SUITES} or 'all'")
+
+    errors: dict[str, str] = {}
+    for s in suites:
+        proc = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / f"eval_{s}.py")],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if proc.returncode != 0:
+            errors[s] = proc.stderr[-500:]
+
+    results = load_eval_summaries()
+    for s, err in errors.items():
+        results.setdefault(s, {})["last_run_error"] = err
+    return results
+
+
+@app.get("/proof/guardrail-activity")
+def get_guardrail_activity() -> dict:
+    store = get_memory_store()
+    events = list_events(store, DEFAULT_CONTEXT.care_team_id)
+    guardrail_events = [e for e in events if e.type.startswith("guardrail_")]
+    counts = Counter(e.type for e in guardrail_events)
+    recent = sorted(guardrail_events, key=lambda e: e.at, reverse=True)[:10]
+    return {
+        "counts": dict(counts),
+        "recent": [
+            {"type": e.type, "summary": e.summary, "at": e.at, "is_concern": e.is_concern}
+            for e in recent
+        ],
+    }
+
+
+@app.get("/proof/health")
+def get_proof_health() -> dict:
+    scheduler = getattr(app.state, "scheduler", None)
+    return {
+        "sqlite_reachable": SQLITE_DB_PATH.exists(),
+        "sqlite_path": str(SQLITE_DB_PATH),
+        "scheduler_running": scheduler is not None and scheduler.running,
+    }

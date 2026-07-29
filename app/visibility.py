@@ -18,6 +18,9 @@ class EventType(str, Enum):
     REMINDER_DELIVERED = "reminder_delivered"
     REMINDER_ACKNOWLEDGED = "reminder_acknowledged"
     SIGNAL_NOTED = "signal_noted"
+    GUARDRAIL_REDIRECTED = "guardrail_redirected"
+    GUARDRAIL_ESCALATED = "guardrail_escalated"
+    GUARDRAIL_OUTPUT_REPAIRED = "guardrail_output_repaired"
 
 
 @dataclass
