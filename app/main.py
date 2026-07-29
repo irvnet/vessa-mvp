@@ -16,7 +16,7 @@ from datetime import datetime
 
 from app.agent import generate_checkin
 from app.bootstrap import build_compiled_agent, get_memory_store
-from app.config import ROOT, SQLITE_DB_PATH
+from app.config import ROOT, SQLITE_DB_PATH, get_allowed_origins
 from app.eval_persistence import load_eval_summaries
 from app.profile import CareContext, get_profile
 from app.reminders import (
@@ -315,7 +315,7 @@ app = FastAPI(title="Vessa", lifespan=lifespan)
 # this API directly — local dev only, tighten before any real deploy.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=get_allowed_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )

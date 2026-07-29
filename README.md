@@ -1,124 +1,67 @@
-# City Development Watch
+# Vessa
 
-City development can be somewhat unclear — experimenting with LangGraph agents to make it easier to follow.
+An AI companion app for elderly care — a proactive companion for the care receiver, and a calm caregiver view for the people looking after them. Built as an AI-engineering cert capstone/demo-day project.
 
-City Planning, Zoning, and Historic Preservation Commission agendas
-are public, but buried in PDF files. This project
-asks whether a simple conversational agent — grounded in those agendas, can help a resident learn about the changing city without reading every available PDF first.
-
-**Live demo:** https://jc-development-watch.vercel.app
-
-Try: *What is case Z2026-0025?*
+**Live:** https://meetvessa.com
 
 ---
 
 ## What this is
 
-A small end-to-end spike: ingest Jersey City public board agendas, index them in Qdrant, wire up a
-LangGraph agent with retrieval + web search, deploy to a public URL, and measure answer quality with RAGAS.
-The repo includes the agent, eval artifacts, EC2/Terraform deploy path, and a Next.js chat UI.
-More detail in [`DEPLOY.md`](DEPLOY.md) and [`01-spike-pipeline.ipynb`](01-spike-pipeline.ipynb).
+Three capabilities, deliberately kept to a tight scope:
 
----
+- **C1 — Proactive companion that remembers.** A LangGraph agent (`create_agent`) with a caregiver-seeded profile, persistent episodic memory, and a real scheduler that initiates check-ins — not just a reactive chatbot.
+- **C2 — Scheduled reminder, closed loop.** A caregiver creates a reminder → the companion surfaces it in conversation → the receiver confirms → the caregiver sees the acknowledgment.
+- **C3 — Caregiver visibility.** A "Today" activity feed, reminder management, and a caregiver-notifications log — largely a byproduct of C1/C2's own data.
 
-## What's working
+## Safety and provability
 
-| Layer | Notes |
-|-------|-------|
-| Corpus | ~30 unique 2026 agenda PDFs, 3 boards |
-| Retrieval | Ensemble dense + BM25 with Cohere rerank (0.906 faithfulness) |
-| Agent | LangGraph — agenda search tool + Tavily for news context |
-| Vectors | Qdrant Cloud |
-| Backend | LangGraph Server on EC2 |
-| Frontend | Next.js on Vercel, mobile-checked |
+A companion for someone with cognitive decline has to prove it's trustworthy, not just claim it — a wrong or ungrounded answer isn't harmless here, and trust lost once may not come back. Two things back that up:
 
----
+- **Layered guardrails** (`app/guardrails.py`): deterministic regex checks first (fast, free), an LLM-judgment fallback for nuance, and checks on *both* input and output — never medical diagnosis or advice, always redirected to the caregiver or a professional.
+- **A real eval suite, not vibes** (`scripts/eval_*.py`): golden-set regression tests for guardrail safety/tone, grounding (time/date accuracy, not inventing unknown people), and memory-recall quality — every case traces back to a real bug found in live testing. Results are visible live at `/proof`, not buried in a terminal or LangSmith.
 
 ## Stack
 
 | Component | Choice |
 |-----------|--------|
 | LLM | gpt-4o-mini |
-| Embeddings | text-embedding-3-large |
-| Orchestration | LangGraph (`create_agent`) |
-| Tools | Qdrant retriever + Tavily |
-| Vector DB | Qdrant Cloud |
-| UI | FastAPI (local) · Next.js + Vercel (public) |
-| Backend | EC2 + `langgraph up` |
-| Packaging | uv |
-
----
-
-## Eval results
-
-| Config | Faithfulness |
-|--------|-------------|
-| Baseline (naive dense) | 0.831 |
-| Ensemble + Cohere rerank | **0.906** |
-| Prompt-tight v2 | 0.721 |
-
-Artifacts in `data/`.
-
----
+| Orchestration | LangGraph (`create_agent`) + composable middleware (guardrails, grounding, prompting) |
+| Memory | Embedding-based episodic recall (OpenAI embeddings + LangGraph store) |
+| Persistence | SQLite (checkpointer + store) — survives restarts |
+| Scheduler | APScheduler (in-process, proactive check-ins) |
+| Backend | FastAPI, plain `uvicorn` — no Docker |
+| Frontend | Next.js + Tailwind, deployed on Vercel |
+| Deploy | EC2 (Caddy for TLS) — see [`DEPLOY.md`](DEPLOY.md) |
 
 ## Project layout
 
 ```
-app/           # Agent, retriever, ingest, graph
-frontend/      # Next.js chat UI
-scripts/       # Indexing, EC2 bootstrap, verification
-ami/           # Packer image for EC2
-provision/     # Terraform
-data/          # Inventory, eval sets (PDFs downloaded at runtime)
+app/               # Agent, guardrails, memory, reminders, scheduler, FastAPI routes
+scripts/           # Eval suites (safety/grounding/memory), deploy helper
+provision-vessa/   # Terraform — Vessa's own isolated EC2/VPC
+frontend/          # Next.js UI — companion chat + caregiver views + /proof
+data/              # SQLite db + cached eval results (gitignored)
 ```
-
----
 
 ## Quick start
 
 ```bash
 uv sync
-cp .env.example .env
-uv run python scripts/index_corpus.py
-uv run uvicorn app.main:app --reload --port 8000
+cp .env.example .env    # set OPENAI_API_KEY
+uv run uvicorn app.main:app --reload --port 8010
 ```
 
 Frontend:
-
 ```bash
 cd frontend && npm install && cp .env.local.example .env.local && npm run dev
 ```
 
----
+Run the evals:
+```bash
+uv run python scripts/eval_safety.py
+uv run python scripts/eval_grounding.py
+uv run python scripts/eval_memory.py
+```
 
-## Objectives
-
-What I set out to learn and ship:
-
-| Objective | Outcome |
-|-----------|---------|
-| Frame a real community data problem | JC development agendas — public but hard to use |
-| Build a grounded RAG pipeline over municipal PDFs | Ingest → chunk → Qdrant → cited answers |
-| Add agentic tooling (retrieval + external search) | LangGraph agent with agenda + Tavily tools |
-| Measure retrieval quality, not just vibes | RAGAS evals; naive vs ensemble comparison |
-| Deploy to a public endpoint | EC2 backend + Vercel frontend, phone-checked |
-| Document decisions and reproducibility | This repo, deploy guide, pipeline notebook |
-
----
-
-## Roadmap
-
-| Item | Status |
-|------|--------|
-| 2026 agenda ingest | ✅ |
-| Public agent deploy | ✅ |
-| Retrieval eval comparison | ✅ |
-| Case extraction, map, alerts | Later |
-| Multi-city / historical backfill | Later |
-
----
-
-## Data attribution
-
-City of Jersey City Open Data Portal ([data.jerseycitynj.gov](https://data.jerseycitynj.gov)).
-Agenda data is public record.
+Deployment: see [`DEPLOY.md`](DEPLOY.md).

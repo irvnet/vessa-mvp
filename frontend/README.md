@@ -1,15 +1,15 @@
-# City Development Watch — Frontend
+# Vessa — Frontend
 
-Next.js chat UI streaming from the EC2 LangGraph API via `/api` proxy.
+Next.js UI: companion chat, caregiver views (reminders/activity), and a `/proof` eval dashboard. Talks directly to Vessa's FastAPI backend over plain `fetch()` — no LangGraph proxy, no `/api` route.
 
 ## Local dev
 
-Backend must be running (`langgraph up` on EC2, or `langgraph dev` locally).
+Backend must be running (`uv run uvicorn app.main:app --reload --port 8010` from the repo root).
 
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local   # edit keys + URLs
+cp .env.local.example .env.local   # defaults to http://localhost:8010, edit if needed
 npm run dev
 ```
 
@@ -19,39 +19,18 @@ Open `http://localhost:3000`.
 
 | Variable | Example |
 |----------|---------|
-| `LANGGRAPH_API_URL` | `http://<EIP>` |
-| `LANGSMITH_API_KEY` | `lsv2_pt_…` |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:3000/api` |
-| `NEXT_PUBLIC_ASSISTANT_ID` | `jc_dev_watch` |
-
-If `default` fails, fetch the assistant UUID:
-
-```bash
-curl -s -X POST "http://<EIP>/assistants/search" \
-  -H "Content-Type: application/json" \
-  -d '{"limit": 10}'
-```
-
-Set `NEXT_PUBLIC_ASSISTANT_ID` to the `assistant_id` for City Development Watch.
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8010` (local) or `https://api.meetvessa.com` (prod) |
 
 ## Deploy to Vercel
 
 ```bash
-npx vercel
-npx vercel --prod
+rm -rf .vercel
+vercel link      # create a fresh project — don't reuse an old one
+vercel --prod
 ```
 
-Set **Root Directory** to `frontend`.
+Set **Root Directory** to `frontend`. In the Vercel dashboard, set `NEXT_PUBLIC_API_URL` to the deployed backend's URL, and connect the `meetvessa.com` domain.
 
-### Vercel env vars
+Recommended: connect this repo's GitHub integration in Vercel instead of manual `vercel --prod` deploys — every push to `main` then auto-deploys.
 
-| Variable | Value |
-|----------|-------|
-| `LANGGRAPH_API_URL` | `http://<EIP>` |
-| `LANGSMITH_API_KEY` | your LangSmith key |
-| `NEXT_PUBLIC_API_URL` | `https://<your-app>.vercel.app/api` |
-| `NEXT_PUBLIC_ASSISTANT_ID` | `jc_dev_watch` |
-
-Redeploy after changing env vars.
-
-See [`DEPLOY.md`](../DEPLOY.md) for full stack guide.
+See [`DEPLOY.md`](../DEPLOY.md) for the full stack guide.
