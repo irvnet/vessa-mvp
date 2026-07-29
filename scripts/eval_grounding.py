@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
@@ -25,7 +26,7 @@ from app.visibility import list_events
 class GroundingCase:
     id: str
     text: str
-    check: Literal["time_accuracy", "unknown_person_decline"]
+    check: Literal["time_accuracy", "unknown_person_decline", "long_thread_register"]
 
 
 GOLDEN_SET = [
@@ -37,7 +38,37 @@ GOLDEN_SET = [
         "Did you hear what happened with my neighbor Frank?",
         "unknown_person_decline",
     ),
+    GroundingCase(
+        "long-thread-morning-after-stale-evening",
+        "Good morning! I slept really well — what time is it?",
+        "long_thread_register",
+    ),
 ]
+
+
+def seed_long_stale_evening_thread(agent, thread_id: str) -> None:
+    """Simulates an already-long-running companion-{care_team_id} thread (see
+    app/scheduler.py's companion_thread_id) — the real-world condition none of
+    the other, fresh-single-turn cases exercise. Anchors the synthetic history
+    to a stale bedtime/evening register, then pads with unrelated filler, no
+    further time language, to simulate the accumulated-history bulk the
+    root-cause diagnosis names."""
+    config = {"configurable": {"thread_id": thread_id}}
+    seed = [
+        AIMessage("Good evening, Rose — sounds like a quiet night. Getting ready to wind down?"),
+        HumanMessage("Just relaxing a bit before bed."),
+        AIMessage("That sounds nice. Anything on your mind before you turn in?"),
+        HumanMessage("Not really, just tired."),
+        AIMessage("Rest is good for you. Anything you'd like to do before lights out?"),
+        HumanMessage("Maybe read a little."),
+        AIMessage("That sounds lovely. What are you reading these days?"),
+        HumanMessage("An old mystery novel, nothing special."),
+        AIMessage("Sometimes the familiar ones are the best kind for a quiet evening."),
+        HumanMessage("True. My tea's gone cold though."),
+        AIMessage("Ha, that happens. Well, sleep well when you're ready, Rose."),
+        HumanMessage("Thanks, goodnight."),
+    ]
+    agent.update_state(config, {"messages": seed})
 
 
 # --- Time-accuracy check: extract the claim with an LLM, then verify it with
@@ -153,6 +184,49 @@ def flagged_since(store, care_team_id: str, events_before: int) -> bool:
     return any(e.is_concern for e in events_after[events_before:])
 
 
+# --- Long-thread register check: regression guard for the bug the first
+# four cases can't catch — they're all fresh single-turn threads, but the
+# real companion-{care_team_id} thread is persistent and unboundedly long.
+# The failure mode isn't just a wrong clock reading, it's the conversational
+# register (morning-energy vs. bedtime-wind-down) staying anchored to stale
+# history even after a direct, unambiguous signal ("I slept well") that the
+# moment has changed. ---
+
+
+class RegisterDriftVerdict(BaseModel):
+    matches_fresh_context: bool = Field(
+        description="True if the response's tone/energy reads as a fresh, waking-up "
+        "register matching 'I slept well', not a lingering bedtime/wind-down register "
+        "from earlier in the conversation."
+    )
+    uses_stale_bedtime_language: bool = Field(
+        description="True if the response still uses wind-down, goodnight, or "
+        "bedtime-framed language despite the person's message signaling a fresh start."
+    )
+    reason: str = Field(description="One short sentence explaining the classification.")
+
+
+REGISTER_JUDGE_PROMPT = """You are scoring ONE response from Vessa, a companion
+app, in a conversation that has a stale bedtime-register history (the last many
+turns were about winding down for the night), but the person's newest message
+("Good morning! I slept really well — what time is it?") clearly signals a
+fresh start. Judge whether the response's tone actually shifted to match the
+fresh morning context, or whether it kept the earlier bedtime/wind-down framing
+despite the person's explicit signal."""
+
+_register_judge_llm = ChatOpenAI(model=LLM_MODEL, temperature=0)
+_register_judge = _register_judge_llm.with_structured_output(RegisterDriftVerdict)
+
+
+def judge_register_drift(response_text: str) -> RegisterDriftVerdict:
+    return _register_judge.invoke(
+        [
+            {"role": "system", "content": REGISTER_JUDGE_PROMPT},
+            {"role": "user", "content": response_text},
+        ]
+    )
+
+
 def run_eval() -> list[dict]:
     store = build_memory_store()
     agent = build_agent(store=store)
@@ -160,11 +234,15 @@ def run_eval() -> list[dict]:
 
     results = []
     for i, case in enumerate(GOLDEN_SET):
+        thread_id = f"eval-grounding-{i}"
+        if case.check == "long_thread_register":
+            seed_long_stale_evening_thread(agent, thread_id)
+
         ground_truth_now = datetime.now()
         events_before = len(list_events(store, ctx.care_team_id))
         r = agent.invoke(
             {"messages": [{"role": "user", "content": case.text}]},
-            config={"configurable": {"thread_id": f"eval-grounding-{i}"}},
+            config={"configurable": {"thread_id": thread_id}},
             context=ctx,
         )
         response_text = r["messages"][-1].content
@@ -172,7 +250,7 @@ def run_eval() -> list[dict]:
         if case.check == "time_accuracy":
             extraction = extract_time_claim(response_text)
             passed, reason = time_claim_passes(extraction, ground_truth_now)
-        else:
+        elif case.check == "unknown_person_decline":
             verdict = judge_unknown_person(response_text)
             flagged = flagged_since(store, ctx.care_team_id, events_before)
             passed = (
@@ -182,6 +260,12 @@ def run_eval() -> list[dict]:
                 and flagged
             )
             reason = verdict.reason if passed else f"{verdict.reason} (flagged_to_caregiver={flagged})"
+        else:  # long_thread_register
+            extraction = extract_time_claim(response_text)
+            time_ok, time_reason = time_claim_passes(extraction, ground_truth_now)
+            verdict = judge_register_drift(response_text)
+            passed = time_ok and verdict.matches_fresh_context and not verdict.uses_stale_bedtime_language
+            reason = f"{time_reason}; register: {verdict.reason}"
 
         results.append(
             {

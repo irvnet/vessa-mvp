@@ -1,7 +1,13 @@
 from datetime import datetime, timezone
 
 from langchain.agents import create_agent
-from langchain.agents.middleware import AgentState, ModelRequest, before_model, dynamic_prompt
+from langchain.agents.middleware import (
+    AgentState,
+    ModelRequest,
+    SummarizationMiddleware,
+    before_model,
+    dynamic_prompt,
+)
 from langchain.tools import ToolRuntime, tool
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langgraph.checkpoint.memory import InMemorySaver
@@ -206,6 +212,17 @@ answer here isn't harmless small talk — it reinforces disorientation. Being
 gently, consistently accurate about time and day is part of grounding
 {profile.name}, not just factual correctness.
 
+This may be a long-running conversation. Earlier turns — yours or
+{profile.name}'s — may carry a morning, afternoon, or bedtime tone from
+whenever the conversation started, or from hours ago. Ignore that tone.
+{now_text} is authoritative for BOTH what you say the time is AND how you
+say it — your energy, pacing, and framing (waking up vs. midday vs. winding
+down for bed) must match this timestamp right now, not whatever register
+earlier messages set. If {profile.name} says something that signals the
+moment has changed — "I slept well," "just woke up," "getting ready for
+bed" — believe them and this timestamp together, and drop the earlier
+register immediately, even many turns in.
+
 If the person mentions or asks about someone who is not named in Relationships
 above, do not guess who they mean and do not invent details about them. Say
 warmly that you don't know much about that person yet, and that you'll
@@ -231,6 +248,7 @@ def build_agent(store: InMemoryStore | None = None, checkpointer=None):
         middleware=[
             input_rails_middleware,
             unknown_person_middleware,
+            SummarizationMiddleware(model=llm, trigger=("messages", 24), keep=("messages", 16)),
             companion_prompt,
             output_rails_middleware,
         ],
