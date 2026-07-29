@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Home } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8010";
 // Must match app.scheduler.companion_thread_id("team-rose") on the backend —
@@ -71,8 +77,18 @@ export default function CompanionPage() {
   return (
     <main className="flex h-dvh flex-col items-center bg-background">
       <div className="flex w-full max-w-2xl flex-1 flex-col px-4">
-        <header className="flex items-center justify-center py-6">
+        <header className="relative flex items-center justify-center py-6">
+          <Link
+            href="/"
+            className="absolute left-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Back to home"
+          >
+            <Home className="size-5" />
+          </Link>
           <h1 className="font-heading text-2xl font-extrabold text-clay">Vessa</h1>
+          <div className="absolute right-0">
+            <ThemeToggle />
+          </div>
         </header>
 
         <div className="flex-1 space-y-5 overflow-y-auto pb-4">
@@ -103,21 +119,21 @@ export default function CompanionPage() {
           }}
           className="flex gap-3 py-6"
         >
-          <input
+          <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Good morning..."
             disabled={sending}
             aria-label="Talk to Vessa"
-            className="h-16 flex-1 rounded-full border border-input bg-card px-6 text-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-16 flex-1 rounded-full bg-card px-6 text-xl"
           />
-          <button
+          <Button
             type="submit"
             disabled={sending}
-            className="h-16 shrink-0 rounded-full bg-primary px-8 text-xl font-bold text-primary-foreground transition-opacity disabled:opacity-50"
+            className="h-16 shrink-0 rounded-full px-8 text-xl font-bold"
           >
             Send
-          </button>
+          </Button>
         </form>
       </div>
     </main>

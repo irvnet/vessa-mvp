@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8010";
 const POLL_INTERVAL_MS = 15000;
@@ -80,27 +82,18 @@ export default function ProofPage() {
   const suites = ["safety", "grounding", "memory"];
 
   return (
-    <main className="min-h-dvh bg-background">
-      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6 md:max-w-2xl">
-        <header className="flex items-center justify-between">
-          <h1 className="font-heading text-lg font-bold text-clay">Vessa · Proof</h1>
-          <ThemeToggle />
-        </header>
-
-        <section className="vessel-shape-sm bg-card px-5 py-4 ring-1 ring-border">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6 md:max-w-2xl">
+      <Card className="vessel-shape-sm">
+        <CardHeader>
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">Eval Results</h2>
-            <button
-              type="button"
-              onClick={runAllEvals}
-              disabled={running}
-              className="h-9 shrink-0 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50"
-            >
+            <CardTitle>Eval Results</CardTitle>
+            <Button type="button" size="sm" onClick={runAllEvals} disabled={running}>
               {running ? "Running…" : "Run all now"}
-            </button>
+            </Button>
           </div>
-
-          <ul className="mt-3 flex flex-col gap-2">
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-col gap-2">
             {suites.map((suite) => {
               const r = evalResults[suite];
               const ok = r && r.passed === r.total && !r.last_run_error;
@@ -119,27 +112,30 @@ export default function ProofPage() {
                       <span className="ml-2 text-xs text-muted-foreground">never run</span>
                     )}
                   </span>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  <Badge
+                    className={
                       !r
                         ? "bg-secondary text-secondary-foreground"
                         : ok
                           ? "bg-moss-soft text-moss"
                           : "bg-marigold-soft text-marigold"
-                    }`}
+                    }
                   >
                     {r ? (r.last_run_error ? "error" : `${r.passed}/${r.total}`) : "—"}
-                  </span>
+                  </Badge>
                 </li>
               );
             })}
           </ul>
-        </section>
+        </CardContent>
+      </Card>
 
-        <section className="vessel-shape-sm bg-card px-5 py-4 ring-1 ring-border">
-          <h2 className="text-base font-bold">Guardrail Activity</h2>
-
-          <div className="mt-3 grid grid-cols-3 gap-2">
+      <Card className="vessel-shape-sm">
+        <CardHeader>
+          <CardTitle>Guardrail Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-2">
             {[
               ["Redirected", guardrailActivity?.counts["guardrail_redirected"] ?? 0],
               ["Escalated", guardrailActivity?.counts["guardrail_escalated"] ?? 0],
@@ -175,38 +171,42 @@ export default function ProofPage() {
               </li>
             )}
           </ul>
-        </section>
+        </CardContent>
+      </Card>
 
-        <section className="vessel-shape-sm bg-card px-5 py-4 ring-1 ring-border">
-          <h2 className="text-base font-bold">System Health</h2>
-          <div className="mt-3 flex flex-col gap-2">
+      <Card className="vessel-shape-sm">
+        <CardHeader>
+          <CardTitle>System Health</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2 text-sm">
               <span>Persistence (SQLite)</span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              <Badge
+                className={
                   health?.sqlite_reachable
                     ? "bg-moss-soft text-moss"
                     : "bg-marigold-soft text-marigold"
-                }`}
+                }
               >
                 {health ? (health.sqlite_reachable ? "OK" : "unreachable") : "—"}
-              </span>
+              </Badge>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2 text-sm">
               <span>Proactive scheduler</span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              <Badge
+                className={
                   health?.scheduler_running
                     ? "bg-moss-soft text-moss"
                     : "bg-marigold-soft text-marigold"
-                }`}
+                }
               >
                 {health ? (health.scheduler_running ? "running" : "stopped") : "—"}
-              </span>
+              </Badge>
             </div>
           </div>
-        </section>
-      </div>
-    </main>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
