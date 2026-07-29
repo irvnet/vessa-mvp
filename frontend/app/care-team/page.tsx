@@ -133,63 +133,13 @@ export default function CareTeamPage() {
 
   return (
     <main className="min-h-dvh bg-background">
-      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6 md:max-w-4xl">
         <header className="flex items-center justify-between">
           <h1 className="font-heading text-lg font-bold text-clay">Vessa · Care Team</h1>
           <ThemeToggle />
         </header>
 
-        <section className="vessel-shape-sm bg-card px-5 py-4 ring-1 ring-border">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">{today?.name ?? "Rose"} · Today</h2>
-            <span
-              className={`vessel-shape-sm px-3 py-1 text-xs font-bold ${
-                today?.status === "attention"
-                  ? "bg-marigold-soft text-marigold"
-                  : "bg-moss-soft text-moss"
-              }`}
-            >
-              {today?.status === "attention" ? "⚠️ Needs attention" : "🟢 OK"}
-            </span>
-          </div>
-
-          <ul className="mt-4 flex flex-col gap-1.5">
-            {(today?.events ?? []).map((e, i) => (
-              <li
-                key={i}
-                className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${
-                  e.is_concern ? "bg-marigold-soft text-marigold" : "text-foreground/85"
-                }`}
-              >
-                <span>{e.is_concern ? "⚠️" : e.type === "reminder_acknowledged" ? "✓" : "•"}</span>
-                <span className="flex-1 truncate">{e.summary}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{formatTime(e.at)}</span>
-              </li>
-            ))}
-            {today && today.events.length === 0 && (
-              <li className="px-2.5 py-1.5 text-sm text-muted-foreground">Nothing yet today.</li>
-            )}
-          </ul>
-        </section>
-
-        <section className="vessel-shape-sm bg-card px-5 py-4 ring-1 ring-border">
-          <h2 className="text-base font-bold">Notifications</h2>
-          <ul className="mt-3 flex flex-col gap-1.5">
-            {[...notifications].reverse().map((n, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground/85"
-              >
-                <span className="flex-1 truncate">{n.message}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{formatTime(n.at)}</span>
-              </li>
-            ))}
-            {notifications.length === 0 && (
-              <li className="px-2.5 py-1.5 text-sm text-muted-foreground">No notifications yet.</li>
-            )}
-          </ul>
-        </section>
-
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
         <section className="vessel-shape-sm bg-card px-5 py-4 ring-1 ring-border">
           <h2 className="text-base font-bold">Reminders</h2>
 
@@ -304,6 +254,58 @@ export default function CareTeamPage() {
             </div>
           </form>
         </section>
+
+        <section className="vessel-shape-sm bg-card px-5 py-4 ring-1 ring-border">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold">{today?.name ?? "Rose"} · Today</h2>
+            <span
+              className={`vessel-shape-sm px-3 py-1 text-xs font-bold ${
+                today?.status === "attention"
+                  ? "bg-marigold-soft text-marigold"
+                  : "bg-moss-soft text-moss"
+              }`}
+            >
+              {today?.status === "attention" ? "⚠️ Needs attention" : "🟢 OK"}
+            </span>
+          </div>
+
+          <ul className="mt-4 flex flex-col gap-1.5">
+            {(today?.events ?? []).map((e, i) => (
+              <li
+                key={i}
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${
+                  e.is_concern ? "bg-marigold-soft text-marigold" : "text-foreground/85"
+                }`}
+              >
+                <span>{e.is_concern ? "⚠️" : e.type === "reminder_acknowledged" ? "✓" : "•"}</span>
+                <span className="flex-1 truncate">{e.summary}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatTime(e.at)}</span>
+              </li>
+            ))}
+            {today && today.events.length === 0 && (
+              <li className="px-2.5 py-1.5 text-sm text-muted-foreground">Nothing yet today.</li>
+            )}
+          </ul>
+
+          <div className="mt-4 border-t border-border pt-3">
+            <h3 className="text-sm font-bold text-muted-foreground">Notifications</h3>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {[...notifications].reverse().map((n, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground/85"
+                >
+                  <span className="flex-1 truncate">{n.message}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{formatTime(n.at)}</span>
+                </li>
+              ))}
+              {notifications.length === 0 && (
+                <li className="px-2.5 py-1.5 text-sm text-muted-foreground">No notifications yet.</li>
+              )}
+            </ul>
+          </div>
+        </section>
+        </div>
       </div>
     </main>
   );
