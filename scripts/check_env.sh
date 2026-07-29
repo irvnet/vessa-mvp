@@ -1,18 +1,13 @@
 #!/bin/bash
-# Validate ~/agent/.env before starting jc-development-watch.
-# Used by scripts/ec2_start.sh and systemd ExecStartPre.
+# Validate ~/vessa/.env before starting the vessa backend.
+# Used by systemd ExecStartPre.
 set -euo pipefail
 
-AGENT_HOME="${AGENT_HOME:-/home/ubuntu/agent}"
+AGENT_HOME="${AGENT_HOME:-/home/ubuntu/vessa}"
 ENV_FILE="${AGENT_HOME}/.env"
 
 REQUIRED_KEYS=(
   OPENAI_API_KEY
-  COHERE_API_KEY
-  TAVILY_API_KEY
-  QDRANT_URL
-  QDRANT_API_KEY
-  LANGSMITH_API_KEY
 )
 
 # Values that look like unfilled placeholders
@@ -55,10 +50,6 @@ placeholder=()
 
 for key in "${REQUIRED_KEYS[@]}"; do
   if ! val="$(get_env_value "${key}")"; then
-    # LANGCHAIN_API_KEY satisfies LANGSMITH_API_KEY requirement
-    if [[ "${key}" == "LANGSMITH_API_KEY" ]] && val="$(get_env_value "LANGCHAIN_API_KEY" 2>/dev/null || true)" && [[ -n "${val}" ]]; then
-      continue
-    fi
     missing+=("${key}")
     continue
   fi

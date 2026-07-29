@@ -31,3 +31,11 @@ def load_env() -> None:
         if not key:
             continue
         os.environ.setdefault(key, val.strip().strip('"').strip("'"))
+
+
+def get_allowed_origins() -> list[str]:
+    """A function, not a module-level constant — config.py's body runs before
+    load_env() is called (agent.py imports config first, then calls
+    load_env()), so a constant here would always read the stale/default env."""
+    raw = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
+    return [o.strip() for o in raw.split(",") if o.strip()]
