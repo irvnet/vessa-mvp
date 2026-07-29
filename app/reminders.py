@@ -94,6 +94,27 @@ def acknowledge(store: InMemoryStore, care_team_id: str, reminder_id: str) -> Re
     return reminder
 
 
+def update_reminder(
+    store: InMemoryStore,
+    care_team_id: str,
+    reminder_id: str,
+    subject: str | None = None,
+    due_at: datetime | None = None,
+) -> Reminder:
+    reminders = {r.id: r for r in _load_all(store, care_team_id)}
+    reminder = reminders[reminder_id]
+    if subject is not None:
+        reminder.subject = subject.strip()
+    if due_at is not None:
+        reminder.due_at = due_at.isoformat()
+    store.put(reminder_namespace(care_team_id), reminder_id, reminder.__dict__, index=False)
+    return reminder
+
+
+def delete_reminder(store: InMemoryStore, care_team_id: str, reminder_id: str) -> None:
+    store.delete(reminder_namespace(care_team_id), reminder_id)
+
+
 # Stand-in for real push/SMS/email delivery — an in-memory feed the Care Team
 # view can read. Real delivery channel is a later integration, not MVP scope.
 CAREGIVER_NOTIFICATIONS: dict[str, list[dict]] = {}

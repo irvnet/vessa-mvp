@@ -14,7 +14,15 @@ from datetime import datetime
 from app.agent import generate_checkin
 from app.bootstrap import build_compiled_agent, get_memory_store
 from app.profile import CareContext, get_profile
-from app.reminders import CAREGIVER_NOTIFICATIONS, create_reminder, effective_status, list_reminders
+from app.reminders import (
+    CAREGIVER_NOTIFICATIONS,
+    acknowledge,
+    create_reminder,
+    delete_reminder,
+    effective_status,
+    list_reminders,
+    update_reminder,
+)
 from app.scheduler import companion_thread_id, start_scheduler
 from app.visibility import status_badge, todays_events
 
@@ -394,6 +402,41 @@ def get_reminders() -> list[ReminderView]:
         )
         for r in reminders
     ]
+
+
+@app.put("/reminders/{reminder_id}", response_model=ReminderView)
+def edit_reminder(reminder_id: str, req: ReminderRequest) -> ReminderView:
+    store = get_memory_store()
+    due_at = datetime.fromisoformat(req.due_at)
+    try:
+        reminder = update_reminder(
+            store, DEFAULT_CONTEXT.care_team_id, reminder_id, subject=req.subject, due_at=due_at
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    return ReminderView(
+        id=reminder.id, subject=reminder.subject, due_at=reminder.due_at,
+        status=effective_status(reminder),
+    )
+
+
+@app.delete("/reminders/{reminder_id}")
+def remove_reminder(reminder_id: str) -> dict:
+    store = get_memory_store()
+    delete_reminder(store, DEFAULT_CONTEXT.care_team_id, reminder_id)
+    return {"status": "deleted"}
+
+
+@app.post("/reminders/{reminder_id}/acknowledge", response_model=ReminderView)
+def mark_reminder_acknowledged(reminder_id: str) -> ReminderView:
+    store = get_memory_store()
+    try:
+        reminder = acknowledge(store, DEFAULT_CONTEXT.care_team_id, reminder_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    return ReminderView(
+        id=reminder.id, subject=reminder.subject, due_at=reminder.due_at, status=reminder.status
+    )
 
 
 @app.get("/notifications")
