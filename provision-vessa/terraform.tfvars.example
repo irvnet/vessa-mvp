@@ -1,0 +1,9 @@
+# cp terraform.tfvars.example terraform.tfvars, then fill in:
+github_repo_url = "https://github.com/irvnet/vessa-mvp.git"
+
+# Tighten SSH access to your own IP once you know it (curl ifconfig.me):
+# allowed_ssh_cidr = "203.0.113.10/32"
+
+# openai_api_key is intentionally NOT set here — export it instead, so the
+# real key never lands in a file that could get committed by accident:
+#   export TF_VAR_openai_api_key=sk-...
