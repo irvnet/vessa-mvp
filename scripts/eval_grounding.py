@@ -16,7 +16,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from app.agent import build_agent, build_memory_store
-from app.config import LLM_MODEL
+from app.config import LLM_MODEL, now_local
 from app.eval_persistence import save_eval_summary
 from app.profile import CareContext
 from app.visibility import list_events
@@ -238,7 +238,7 @@ def run_eval() -> list[dict]:
         if case.check == "long_thread_register":
             seed_long_stale_evening_thread(agent, thread_id)
 
-        ground_truth_now = datetime.now()
+        ground_truth_now = now_local()
         events_before = len(list_events(store, ctx.care_team_id))
         r = agent.invoke(
             {"messages": [{"role": "user", "content": case.text}]},

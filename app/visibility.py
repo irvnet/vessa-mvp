@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 
 from langgraph.store.memory import InMemoryStore
+
+from app.config import now_local
 
 
 class EventType(str, Enum):
@@ -46,7 +48,7 @@ def log_event(
         care_team_id=care_team_id,
         type=event_type,
         summary=summary,
-        at=datetime.now().isoformat(),
+        at=now_local().isoformat(),
         is_concern=is_concern,
     )
     store.put(event_namespace(care_team_id), event_id, event.__dict__, index=False)
@@ -62,7 +64,7 @@ def list_events(store: InMemoryStore, care_team_id: str, since: datetime | None 
 
 
 def todays_events(store: InMemoryStore, care_team_id: str) -> list[Event]:
-    start_of_today = datetime.combine(date.today(), datetime.min.time())
+    start_of_today = datetime.combine(now_local().date(), datetime.min.time())
     return list_events(store, care_team_id, since=start_of_today)
 
 

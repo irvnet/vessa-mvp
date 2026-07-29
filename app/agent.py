@@ -15,7 +15,7 @@ from langgraph.runtime import Runtime
 from langgraph.store.memory import InMemoryStore
 from pydantic import BaseModel, Field
 
-from app.config import EMBEDDING_MODEL, LLM_MODEL, load_env
+from app.config import EMBEDDING_MODEL, LLM_MODEL, load_env, now_local
 from app.guardrails import input_rails_middleware, output_rails_middleware, run_output_rails
 from app.profile import CareContext, format_profile_for_prompt, get_profile
 from app.reminders import (
@@ -193,7 +193,7 @@ def companion_prompt(request: ModelRequest) -> str:
         mark_delivered(runtime.store, runtime.context.care_team_id, reminder.id)
     reminders_text = format_reminders_for_prompt(reminders)
 
-    now_text = datetime.now().strftime("%A, %B %-d, %Y, %-I:%M %p")
+    now_text = now_local().strftime("%A, %B %-d, %Y, %-I:%M %p")
 
     return f"""{BASE_SYSTEM_PROMPT}
 
@@ -259,7 +259,7 @@ def build_agent(store: InMemoryStore | None = None, checkpointer=None):
 
 
 def time_of_day_phrase(now: datetime | None = None) -> str:
-    hour = (now or datetime.now()).hour
+    hour = (now or now_local()).hour
     if hour < 12:
         return "morning"
     if hour < 17:

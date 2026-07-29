@@ -14,6 +14,7 @@ from enum import Enum
 from langchain.tools import ToolRuntime, tool
 from langgraph.store.memory import InMemoryStore
 
+from app.config import now_local
 from app.profile import CareContext
 from app.visibility import EventType, log_event
 
@@ -48,7 +49,7 @@ def create_reminder(store: InMemoryStore, care_team_id: str, subject: str, due_a
         subject=subject.strip(),
         due_at=due_at.isoformat(),
         status=ReminderStatus.PENDING.value,
-        created_at=datetime.now().isoformat(),
+        created_at=now_local().isoformat(),
     )
     store.put(reminder_namespace(care_team_id), reminder_id, reminder.__dict__, index=False)
     log_event(store, care_team_id, EventType.REMINDER_CREATED.value, f"Reminder set: {reminder.subject}")
@@ -64,7 +65,7 @@ def effective_status(reminder: Reminder, now: datetime | None = None) -> str:
     """Missed is computed at read-time, not stored — due_at passed + never acknowledged."""
     if reminder.status == ReminderStatus.ACKNOWLEDGED.value:
         return reminder.status
-    now = now or datetime.now()
+    now = now or now_local()
     if datetime.fromisoformat(reminder.due_at) < now:
         return ReminderStatus.MISSED.value
     return reminder.status
@@ -88,7 +89,7 @@ def acknowledge(store: InMemoryStore, care_team_id: str, reminder_id: str) -> Re
     reminders = {r.id: r for r in _load_all(store, care_team_id)}
     reminder = reminders[reminder_id]
     reminder.status = ReminderStatus.ACKNOWLEDGED.value
-    reminder.acknowledged_at = datetime.now().isoformat()
+    reminder.acknowledged_at = now_local().isoformat()
     store.put(reminder_namespace(care_team_id), reminder_id, reminder.__dict__, index=False)
     log_event(store, care_team_id, EventType.REMINDER_ACKNOWLEDGED.value, f"Acknowledged: {reminder.subject}")
     return reminder
@@ -122,7 +123,7 @@ CAREGIVER_NOTIFICATIONS: dict[str, list[dict]] = {}
 
 def notify_caregiver(care_team_id: str, message: str) -> None:
     CAREGIVER_NOTIFICATIONS.setdefault(care_team_id, []).append(
-        {"message": message, "at": datetime.now().isoformat()}
+        {"message": message, "at": now_local().isoformat()}
     )
 
 
