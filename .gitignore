@@ -59,3 +59,4 @@ override.tf.json
 packer_cache/
 *.box
 packer-manifest.json
+data/*.db*
