@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.env
+*.ipynb
+.ipynb_checkpoints/
+ami/
+provision/
+.terraform/
+*.tfstate*
+.DS_Store

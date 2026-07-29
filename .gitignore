@@ -1,0 +1,61 @@
+# Internal notes (local only)
+_notes/
+
+# macOS
+.DS_Store
+
+# Project data
+data/agendas/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.eggs/
+.ipynb_checkpoints/
+
+# Next.js
+node_modules/
+.next/
+out/
+.turbo/
+.vercel/
+
+# Terraform
+.terraform/
+.terraform.d/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.tfstate.lock.info
+*.tfvars
+!*.tfvars.example
+
+# Packer
+packer_cache/
+*.box
+packer-manifest.json

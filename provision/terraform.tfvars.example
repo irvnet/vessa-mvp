@@ -1,0 +1,11 @@
+# Optional — defaults work out of the box for a quick dev deploy.
+# Copy only if you need overrides:
+#   cp terraform.tfvars.example terraform.tfvars
+
+# aws_region       = "us-east-1"
+# environment      = "dev"
+# ssh_key_name     = "asamples"
+# allowed_ssh_cidr = "203.0.113.10/32"   # lock SSH to your IP in production
+# instance_type    = "t3.medium"
+# agent_api_domain = "agent-api.example.com"
+# ami_id           = "ami-xxxxxxxxxxxxxxxxx"  # Packer-built City Development Watch image

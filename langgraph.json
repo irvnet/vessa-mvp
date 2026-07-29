@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": ["."],
+  "env": ".env",
+  "python_version": "3.12",
+  "graphs": {
+    "jc_dev_watch": "app.graph:graph"
+  },
+  "assistants": {
+    "default": {
+      "graph_id": "jc_dev_watch",
+      "name": "City Development Watch",
+      "description": "Jersey City 2026 board agendas — Planning, Zoning, HPC"
+    }
+  }
+}

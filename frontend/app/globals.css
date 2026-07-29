@@ -1,0 +1,174 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-clay: var(--clay);
+  --color-clay-soft: var(--clay-soft);
+  --color-moss: var(--moss);
+  --color-moss-soft: var(--moss-soft);
+  --color-marigold: var(--marigold);
+  --color-marigold-soft: var(--marigold-soft);
+  /* One family, both display and body — a deliberate minimal choice. Rounded
+     sans reads warm/approachable and stays legible at Rose's large sizes. */
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Vessa's palette: grounded in the brand's own naming logic — "Vessa = vessel,
+   something that holds and carries" — rather than a generic warm-elder-app
+   look. Clay (fired stoneware) is the primary accent; moss (Rose's own rose
+   garden) reads calm/OK; marigold is the attention signal, deliberately warm
+   rather than alarm-red — "no alarm theater" is a real design requirement
+   here, not a slogan. */
+:root {
+  --background: #f6efe3; /* parchment */
+  --foreground: #2e2620; /* ink */
+  --card: #fbf8f1; /* linen — barely lighter than parchment */
+  --card-foreground: #2e2620;
+  --popover: #fbf8f1;
+  --popover-foreground: #2e2620;
+  --primary: #a8603a; /* clay */
+  --primary-foreground: #fdf6ee;
+  --secondary: #ece2d2;
+  --secondary-foreground: #3a2f24;
+  --muted: #ece2d2;
+  --muted-foreground: rgba(46, 38, 32, 0.62);
+  --accent: #efe4d2;
+  --accent-foreground: #3a2f24;
+  --destructive: #b5482e;
+  --border: rgba(46, 38, 32, 0.14);
+  --input: rgba(46, 38, 32, 0.16);
+  --ring: #c17f2e;
+  --clay: #a8603a;
+  --clay-soft: #c98a5f;
+  --moss: #6e7f5c;
+  --moss-soft: #dbe3d1;
+  --marigold: #c17f2e;
+  --marigold-soft: #f3e2c8;
+  --chart-1: #a8603a;
+  --chart-2: #6e7f5c;
+  --chart-3: #c17f2e;
+  --chart-4: #8a7255;
+  --chart-5: #b08a5a;
+  --radius: 1rem; /* soft, rounded — the opposite of the civic dossier's sharp corners */
+  --sidebar: #fbf8f1;
+  --sidebar-foreground: #2e2620;
+  --sidebar-primary: #a8603a;
+  --sidebar-primary-foreground: #fdf6ee;
+  --sidebar-accent: #efe4d2;
+  --sidebar-accent-foreground: #3a2f24;
+  --sidebar-border: rgba(46, 38, 32, 0.14);
+  --sidebar-ring: #c17f2e;
+}
+
+.dark {
+  --background: #241d17; /* warm charcoal-brown, not navy — keeps the clay-vessel warmth */
+  --foreground: #f3ead9;
+  --card: #2f261e;
+  --card-foreground: #f3ead9;
+  --popover: #1c1712;
+  --popover-foreground: #f3ead9;
+  --primary: #c98a5f; /* clay-soft reads better on dark */
+  --primary-foreground: #241d17;
+  --secondary: #362b21;
+  --secondary-foreground: #f3ead9;
+  --muted: #362b21;
+  --muted-foreground: rgba(243, 234, 217, 0.62);
+  --accent: #3d3125;
+  --accent-foreground: #f3ead9;
+  --destructive: #e08a6b;
+  --border: rgba(243, 234, 217, 0.14);
+  --input: rgba(243, 234, 217, 0.16);
+  --ring: #d99a4a;
+  --clay: #c98a5f;
+  --clay-soft: #a8603a;
+  --moss: #9db088;
+  --moss-soft: #33402c;
+  --marigold: #d99a4a;
+  --marigold-soft: #46351f;
+  --chart-1: #c98a5f;
+  --chart-2: #9db088;
+  --chart-3: #d99a4a;
+  --chart-4: #b09a78;
+  --chart-5: #c9a26a;
+  --sidebar: #2f261e;
+  --sidebar-foreground: #f3ead9;
+  --sidebar-primary: #c98a5f;
+  --sidebar-primary-foreground: #241d17;
+  --sidebar-accent: #3d3125;
+  --sidebar-accent-foreground: #f3ead9;
+  --sidebar-border: rgba(243, 234, 217, 0.14);
+  --sidebar-ring: #d99a4a;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "liga" 1, "calt" 1;
+  }
+  html {
+    @apply font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading tracking-tight;
+  }
+}
+
+@layer components {
+  /* The signature: an asymmetric, hand-thrown-pottery-inspired shape — used
+     consistently (not everywhere) for Vessa's own speech card and the status
+     badge. Deliberately uneven corners instead of uniform rounded-2xl. */
+  .vessel-shape {
+    border-radius: 2rem 2.5rem 1.75rem 2.25rem;
+  }
+  .vessel-shape-sm {
+    border-radius: 1.1rem 1.4rem 0.9rem 1.25rem;
+  }
+}
