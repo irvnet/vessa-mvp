@@ -20,7 +20,13 @@ export default function CompanionPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // A send optimistically appends the user turn and then the bot reply; the poll
+  // reconciles against messages.length. If a poll lands in the window between the
+  // backend committing the reply and /chat resolving here, it would append the
+  // same reply a second time (no ids to dedup on). Skip polling while a send is
+  // in flight — the next poll after it settles reconciles cleanly.
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     fetch(`${API_URL}/history?thread_id=${THREAD_ID}`)
@@ -31,12 +37,13 @@ export default function CompanionPage() {
 
   useEffect(() => {
     const interval = setInterval(async () => {
+      if (sendingRef.current) return;
       try {
         const res = await fetch(
           `${API_URL}/poll?thread_id=${THREAD_ID}&known_count=${messages.length}`
         );
         const data = await res.json();
-        if (data.new_messages?.length) {
+        if (!sendingRef.current && data.new_messages?.length) {
           setMessages((prev) => [...prev, ...data.new_messages]);
         }
       } catch {
@@ -47,13 +54,18 @@ export default function CompanionPage() {
   }, [messages.length]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll only the conversation container to the bottom — never the window.
+    // (scrollIntoView would scroll every scrollable ancestor, including the page
+    // itself, which pushed the header off-screen as the chat grew.)
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   async function send() {
     const text = input.trim();
     if (!text || sending) return;
     setInput("");
+    sendingRef.current = true;
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setSending(true);
     try {
@@ -70,13 +82,14 @@ export default function CompanionPage() {
         { role: "bot", content: "I didn't quite catch that — could you try again?" },
       ]);
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   }
 
   return (
-    <main className="flex h-dvh flex-col items-center bg-background">
-      <div className="flex w-full max-w-2xl flex-1 flex-col px-4">
+    <main className="flex h-dvh flex-col items-center overflow-hidden bg-background">
+      <div className="flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4">
         <header className="relative flex items-center justify-center py-6">
           <Link
             href="/"
@@ -91,7 +104,7 @@ export default function CompanionPage() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-4">
+        <div ref={scrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-4">
           {messages.map((m, i) =>
             m.role === "bot" ? (
               <div
@@ -109,7 +122,6 @@ export default function CompanionPage() {
               </div>
             )
           )}
-          <div ref={bottomRef} />
         </div>
 
         <form

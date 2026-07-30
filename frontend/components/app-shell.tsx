@@ -15,8 +15,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-card">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
+      <header className="shrink-0 border-b border-border bg-card">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-3">
           <Link href="/" className="font-heading text-lg font-bold text-clay">
             Vessa
@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="flex-1">{children}</main>
+      <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }
