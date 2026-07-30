@@ -22,7 +22,7 @@ def now_local() -> datetime:
     return datetime.now(_RECEIVER_TZ).replace(tzinfo=None)
 
 LLM_MODEL = "gpt-4o-mini"
-EMBEDDING_MODEL = "text-embedding-3-small"  # used only if/when semantic memory search is added
+EMBEDDING_MODEL = "text-embedding-3-small"  # powers episodic memory semantic search (store index + companion_prompt's store.search)
 
 # Real persistence for the live app (app/persistence.py) — scripts/tests keep
 # using the in-memory defaults in agent.py, so this only affects bootstrap.py.

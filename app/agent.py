@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 
 from langchain.agents import create_agent
@@ -9,6 +10,7 @@ from langchain.agents.middleware import (
     dynamic_prompt,
 )
 from langchain.tools import ToolRuntime, tool
+from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.runtime import Runtime
@@ -22,7 +24,7 @@ from app.reminders import (
     acknowledge_reminder,
     format_reminders_for_prompt,
     list_reminders,
-    mark_delivered,
+    surface_due_reminders,
 )
 from app.visibility import EventType, log_event
 
@@ -167,6 +169,70 @@ def unknown_person_middleware(state: AgentState, runtime: Runtime) -> dict | Non
     return None
 
 
+# --- Deterministic time/date answers ---
+# Time/day/date is a pure function of now_local(), not a judgment call — and a
+# wrong clock reading for someone with memory lapses reinforces disorientation
+# rather than grounding them. gpt-4o-mini was observed flipping AM/PM even with
+# the correct timestamp in its prompt (scripts/eval_grounding.py's long-thread
+# case), so a direct time/day/date question is answered in code and never reaches
+# the model. Same philosophy as the guardrail rails and unknown_person_middleware:
+# when the right answer is computable, don't leave it to the model.
+
+_TIME_QUESTION_PATTERNS = [
+    r"what\s+time\s+is\s+it",
+    r"what(?:'s| is)\s+the\s+time",
+    r"(?:do|does)\s+you\s+(?:know|have)\s+(?:what\s+time|the\s+time)",
+    r"(?:have|got)\s+the\s+time",
+    r"tell\s+me\s+the\s+time",
+    r"what\s+day\s+is\s+it",
+    r"what\s+day\s+of\s+the\s+week",
+    r"what(?:'s| is)\s+(?:the\s+|today'?s\s+)?date",
+]
+_TIME_QUESTION_RE = re.compile("|".join(_TIME_QUESTION_PATTERNS), re.IGNORECASE)
+
+
+def is_time_or_date_question(text: str) -> bool:
+    return bool(_TIME_QUESTION_RE.search(text))
+
+
+def _spoken_time(now: datetime) -> str:
+    hour24 = now.hour
+    if hour24 < 12:
+        part = "in the morning"
+    elif hour24 < 17:
+        part = "in the afternoon"
+    elif hour24 < 21:
+        part = "in the evening"
+    else:
+        part = "at night"
+    hour12 = hour24 % 12 or 12
+    minute = f":{now.minute:02d}" if now.minute else " o'clock"
+    return f"{hour12}{minute} {part}"
+
+
+def deterministic_time_answer(name: str, now: datetime | None = None) -> str:
+    """Warm, code-generated time/day/date line — always includes both the day and
+    the time, since the extra grounding is a feature for {name}, not clutter."""
+    now = now or now_local()
+    return (
+        f"It's good to hear from you, {name} — right now it's {_spoken_time(now)} "
+        f"on {now.strftime('%A')}, {now.strftime('%B %-d')}."
+    )
+
+
+@before_model(can_jump_to=["end"])
+def time_answer_middleware(state: AgentState, runtime: Runtime) -> dict | None:
+    last_message = state["messages"][-1]
+    if last_message.type != "human":
+        return None
+    if not is_time_or_date_question(str(last_message.content)):
+        return None
+
+    name = get_profile(runtime.context.care_team_id).name
+    answer = deterministic_time_answer(name)
+    return {"messages": [AIMessage(content=answer)], "jump_to": "end"}
+
+
 @dynamic_prompt
 def companion_prompt(request: ModelRequest) -> str:
     runtime = request.runtime
@@ -188,9 +254,8 @@ def companion_prompt(request: ModelRequest) -> str:
     )
     episodes_text = format_episodes(recent_episodes)
 
+    surface_due_reminders(runtime.store, runtime.context.care_team_id)
     reminders = list_reminders(runtime.store, runtime.context.care_team_id)
-    for reminder in reminders:
-        mark_delivered(runtime.store, runtime.context.care_team_id, reminder.id)
     reminders_text = format_reminders_for_prompt(reminders)
 
     now_text = now_local().strftime("%A, %B %-d, %Y, %-I:%M %p")
@@ -248,6 +313,7 @@ def build_agent(store: InMemoryStore | None = None, checkpointer=None):
         middleware=[
             input_rails_middleware,
             unknown_person_middleware,
+            time_answer_middleware,
             SummarizationMiddleware(model=llm, trigger=("messages", 24), keep=("messages", 16)),
             companion_prompt,
             output_rails_middleware,
@@ -282,9 +348,8 @@ def generate_checkin(care_team_id: str, store: InMemoryStore | None = None) -> s
     )[:3]
     episodes_text = format_episodes(recent)
 
+    surface_due_reminders(memory_store, care_team_id)
     reminders = list_reminders(memory_store, care_team_id)
-    for reminder in reminders:
-        mark_delivered(memory_store, care_team_id, reminder.id)
     reminders_text = format_reminders_for_prompt(reminders)
 
     tod = time_of_day_phrase()

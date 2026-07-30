@@ -85,6 +85,18 @@ def mark_delivered(store: InMemoryStore, care_team_id: str, reminder_id: str) ->
     log_event(store, care_team_id, EventType.REMINDER_DELIVERED.value, f"Surfaced: {reminder.subject}")
 
 
+def surface_due_reminders(store: InMemoryStore, care_team_id: str, now: datetime | None = None) -> None:
+    """Mark as delivered only the reminders that are actually due (due_at <= now).
+    'Delivered' is a caregiver-visible, closed-loop claim ("the companion surfaced
+    it") — so a future-dated reminder must NOT flip to delivered just because it
+    happens to sit in the prompt context. Called wherever open reminders are put in
+    front of the model (companion_prompt, generate_checkin)."""
+    now = now or now_local()
+    for reminder in list_reminders(store, care_team_id):
+        if reminder.status == ReminderStatus.PENDING.value and datetime.fromisoformat(reminder.due_at) <= now:
+            mark_delivered(store, care_team_id, reminder.id)
+
+
 def acknowledge(store: InMemoryStore, care_team_id: str, reminder_id: str) -> Reminder:
     reminders = {r.id: r for r in _load_all(store, care_team_id)}
     reminder = reminders[reminder_id]

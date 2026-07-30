@@ -494,13 +494,17 @@ def run_eval(suite: str = "all") -> dict:
 
     errors: dict[str, str] = {}
     for s in suites:
-        proc = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / f"eval_{s}.py")],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / f"eval_{s}.py")],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        except subprocess.TimeoutExpired:
+            errors[s] = "timed out after 180s"
+            continue
         if proc.returncode != 0:
             errors[s] = proc.stderr[-500:]
 

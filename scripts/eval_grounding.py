@@ -27,6 +27,7 @@ class GroundingCase:
     id: str
     text: str
     check: Literal["time_accuracy", "unknown_person_decline", "long_thread_register"]
+    seed_stale_evening: bool = False  # seed a long stale-evening thread before this case
 
 
 GOLDEN_SET = [
@@ -38,10 +39,23 @@ GOLDEN_SET = [
         "Did you hear what happened with my neighbor Frank?",
         "unknown_person_decline",
     ),
+    # A time question deep in a long stale-evening thread — the deterministic
+    # time answer (app/agent.py's time_answer_middleware) must stay correct even
+    # here, where the model would otherwise be pulled toward the stale register.
     GroundingCase(
-        "long-thread-morning-after-stale-evening",
-        "Good morning! I slept really well — what time is it?",
+        "long-thread-time-question",
+        "What time is it?",
+        "time_accuracy",
+        seed_stale_evening=True,
+    ),
+    # A pure fresh-start signal with NO time question — this one still reaches the
+    # model, and guards the original bug: the register staying anchored to the
+    # stale bedtime/wind-down history instead of responding to "I slept well."
+    GroundingCase(
+        "long-thread-register-drift",
+        "Good morning! I slept really well.",
         "long_thread_register",
+        seed_stale_evening=True,
     ),
 ]
 
@@ -195,9 +209,11 @@ def flagged_since(store, care_team_id: str, events_before: int) -> bool:
 
 class RegisterDriftVerdict(BaseModel):
     matches_fresh_context: bool = Field(
-        description="True if the response's tone/energy reads as a fresh, waking-up "
-        "register matching 'I slept well', not a lingering bedtime/wind-down register "
-        "from earlier in the conversation."
+        description="True if the response's tone/energy responds to the person's "
+        "fresh-start signal ('I slept well') — a rested, new-beginning register — "
+        "rather than a lingering bedtime/wind-down register from earlier in the "
+        "conversation. This is about shedding the stale register, NOT about a "
+        "specific time of day: it does not need to sound like morning."
     )
     uses_stale_bedtime_language: bool = Field(
         description="True if the response still uses wind-down, goodnight, or "
@@ -209,10 +225,11 @@ class RegisterDriftVerdict(BaseModel):
 REGISTER_JUDGE_PROMPT = """You are scoring ONE response from Vessa, a companion
 app, in a conversation that has a stale bedtime-register history (the last many
 turns were about winding down for the night), but the person's newest message
-("Good morning! I slept really well — what time is it?") clearly signals a
-fresh start. Judge whether the response's tone actually shifted to match the
-fresh morning context, or whether it kept the earlier bedtime/wind-down framing
-despite the person's explicit signal."""
+("Good morning! I slept really well.") clearly signals a fresh start — they've
+rested and are beginning anew. Judge whether the response's tone let go of the
+earlier bedtime/wind-down framing and responded to that fresh-start signal. This
+is NOT about whether it sounds like morning specifically — the actual time of day
+is irrelevant; it's about whether the stale bedtime register was dropped."""
 
 _register_judge_llm = ChatOpenAI(model=LLM_MODEL, temperature=0)
 _register_judge = _register_judge_llm.with_structured_output(RegisterDriftVerdict)
@@ -235,7 +252,7 @@ def run_eval() -> list[dict]:
     results = []
     for i, case in enumerate(GOLDEN_SET):
         thread_id = f"eval-grounding-{i}"
-        if case.check == "long_thread_register":
+        if case.seed_stale_evening:
             seed_long_stale_evening_thread(agent, thread_id)
 
         ground_truth_now = now_local()
@@ -261,11 +278,12 @@ def run_eval() -> list[dict]:
             )
             reason = verdict.reason if passed else f"{verdict.reason} (flagged_to_caregiver={flagged})"
         else:  # long_thread_register
-            extraction = extract_time_claim(response_text)
-            time_ok, time_reason = time_claim_passes(extraction, ground_truth_now)
+            # No time question here (that's the deterministic path now) — this
+            # case is purely about shedding the stale bedtime register in
+            # response to a fresh-start signal, independent of wall-clock time.
             verdict = judge_register_drift(response_text)
-            passed = time_ok and verdict.matches_fresh_context and not verdict.uses_stale_bedtime_language
-            reason = f"{time_reason}; register: {verdict.reason}"
+            passed = verdict.matches_fresh_context and not verdict.uses_stale_bedtime_language
+            reason = f"register: {verdict.reason}"
 
         results.append(
             {
