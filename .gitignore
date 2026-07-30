@@ -63,3 +63,4 @@ packer_cache/
 packer-manifest.json
 data/*.db*
 data/eval_results.json
+data/backups/

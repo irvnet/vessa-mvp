@@ -16,6 +16,12 @@ export default function RootPage() {
         <p className="mt-2 text-muted-foreground">
           A companion that remembers — and a calm view for the people who care about her.
         </p>
+        <Link
+          href="/about"
+          className="mt-4 inline-block text-sm font-bold text-clay hover:underline"
+        >
+          About Vessa &amp; the story →
+        </Link>
       </div>
       <div className="grid w-full max-w-2xl gap-4 sm:grid-cols-3">
         {DESTINATIONS.map((d) => (
