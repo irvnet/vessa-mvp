@@ -1,8 +1,8 @@
 # Vessa
 
-An AI companion app for elderly care — a proactive companion for the care receiver, and a calm caregiver view for the people looking after them. Built as an AI-engineering cert capstone/demo-day project.
+**An AI companion that's always there — a member of an older adult's care team.** A proactive companion for the care receiver, and a calm window for the family caring for them from a distance. Built as an AI-engineering certification capstone / demo-day project.
 
-**Live:** https://meetvessa.com
+**Live:** [meetvessa.com](https://meetvessa.com) — [companion](https://meetvessa.com/companion) · [care team](https://meetvessa.com/care-team) · [proof](https://meetvessa.com/proof) · [about](https://meetvessa.com/about)
 
 ---
 
@@ -14,12 +14,27 @@ Three capabilities, deliberately kept to a tight scope:
 - **C2 — Scheduled reminder, closed loop.** A caregiver creates a reminder → the companion surfaces it in conversation → the receiver confirms → the caregiver sees the acknowledgment.
 - **C3 — Caregiver visibility.** A "Today" activity feed, reminder management, and a caregiver-notifications log — largely a byproduct of C1/C2's own data.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    U(["Rose / Linda"]) --> FE["Next.js frontend<br/>(Vercel)"]
+    FE -->|HTTPS| BE["FastAPI backend<br/>(EC2 · Caddy TLS)"]
+    SCH["APScheduler<br/>proactive check-ins"] --> BE
+    BE --> AG["LangGraph agent<br/>create_agent + middleware"]
+    AG --> LLM["OpenAI<br/>gpt-4o-mini + embeddings"]
+    AG --> DB[("SQLite<br/>checkpointer + store")]
+```
+
+The interesting part is inside the agent. Every turn runs a composable **middleware pipeline** — `input rails → deterministic side-effects → summarization → dynamic prompt → output rails` — so safety and grounding wrap the model rather than depending on it. Memory is real embedding-based recall (not a transcript dump), the scheduler is an actual background job (not a page-load trigger), and everything runs as plain processes: no Docker, no vector-DB service.
+
 ## Safety and provability
 
-A companion for someone with cognitive decline has to prove it's trustworthy, not just claim it — a wrong or ungrounded answer isn't harmless here, and trust lost once may not come back. Two things back that up:
+A companion for someone with cognitive decline has to prove it's trustworthy, not just claim it — a wrong or ungrounded answer isn't harmless here, and trust lost once may not come back. Three things back that up:
 
 - **Layered guardrails** (`app/guardrails.py`): deterministic regex checks first (fast, free), an LLM-judgment fallback for nuance, and checks on *both* input and output — never medical diagnosis or advice, always redirected to the caregiver or a professional.
-- **A real eval suite, not vibes** (`scripts/eval_*.py`): golden-set regression tests for guardrail safety/tone, grounding (time/date accuracy, not inventing unknown people), and memory-recall quality — every case traces back to a real bug found in live testing. Results are visible live at `/proof`, not buried in a terminal or LangSmith.
+- **Deterministic where it's computable** (`app/agent.py`): the time, the day, and whether someone is in the receiver's circle are answered in code, never guessed by the model. A wrong clock reading for someone with memory lapses reinforces disorientation rather than easing it — a fact shouldn't be left to a guess.
+- **A real eval suite, not vibes** (`scripts/eval_*.py`): golden-set regression tests for guardrail safety/tone, grounding (time/date accuracy, not inventing unknown people), and memory-recall quality — every case traces back to a real bug found in live testing. Results are visible live at `/proof`, not buried in a terminal or LangSmith. Current: **safety 10/10 · grounding 6/6 · memory 4/4**.
 
 ## Stack
 
@@ -38,7 +53,7 @@ A companion for someone with cognitive decline has to prove it's trustworthy, no
 
 ```
 app/               # Agent, guardrails, memory, reminders, scheduler, FastAPI routes
-scripts/           # Eval suites (safety/grounding/memory), deploy helper
+scripts/           # Eval suites (safety/grounding/memory), demo seed, deploy helper
 provision-vessa/   # Terraform — Vessa's own isolated EC2/VPC
 frontend/          # Next.js UI — companion chat + caregiver views + /proof
 data/              # SQLite db + cached eval results (gitignored)
