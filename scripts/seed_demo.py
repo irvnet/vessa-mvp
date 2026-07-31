@@ -31,6 +31,7 @@ from app.config import SQLITE_DB_PATH, load_env, now_local
 from app.persistence import build_sqlite_saver, build_sqlite_store
 from app.reminders import Reminder, ReminderStatus, reminder_namespace
 from app.scheduler import companion_thread_id
+from app.summary import daily_summary_namespace
 from app.visibility import Event, EventType, event_namespace
 
 CARE_TEAM_ID = "team-rose"
@@ -64,10 +65,13 @@ def wipe_db() -> None:
 # --- What Vessa remembers about Rose (episodic memory) ---
 # (days_ago, note) — staggered so the recall/ordering reads naturally.
 EPISODES = [
+    (5, "Rose and her daughter Linda are planning a visit to the botanical garden."),
     (4, "Rose is looking forward to her son Mark visiting for her birthday next month."),
     (3, "Rose started a 1000-piece jigsaw puzzle of a lighthouse this week."),
+    (3, "Rose has been sleeping better since she moved her armchair next to the window."),
     (2, "Rose's cat Biscuit hasn't been eating much the last couple of days."),
     (2, "Rose mentioned her knee has been a little sore since the weekend."),
+    (2, "Rose said the building elevator was out again last week and she took the stairs slowly."),
     (1, "Rose spent yesterday afternoon listening to her old Glenn Miller records."),
     (1, "Rose is proud of a new bloom on her balcony rose garden."),
 ]
@@ -138,6 +142,51 @@ def seed_events(store) -> int:
     return len(events)
 
 
+# Guardrail activity for the /proof page — dated in the PAST (>24h) on purpose:
+# it populates /proof's Guardrail Activity panel (which reads all events) without
+# cluttering today's calm care-team feed (which reads only today's). Kept light
+# and non-alarming: everyday redirects + one output-repair, no seeded emergency.
+# (hours_ago, type, summary, is_concern)
+GUARDRAIL_EVENTS = [
+    (52, EventType.GUARDRAIL_REDIRECTED.value, "medical-advice: asked whether she should take an extra blood-pressure pill", False),
+    (30, EventType.GUARDRAIL_REDIRECTED.value, "self-diagnosis: read online what her symptoms might mean and wanted it confirmed", False),
+    (27, EventType.GUARDRAIL_OUTPUT_REPAIRED.value, "repaired: redacted 1 phone number from a draft reply", False),
+    (26, EventType.GUARDRAIL_REDIRECTED.value, "injection: a message tried to override Vessa's instructions", False),
+]
+
+
+def seed_guardrail_events(store) -> int:
+    now = now_local()
+    for hrs, etype, summary, concern in GUARDRAIL_EVENTS:
+        at = (now - timedelta(hours=hrs)).isoformat()
+        event = Event(
+            id=str(uuid4()), care_team_id=CARE_TEAM_ID, type=etype,
+            summary=summary, at=at, is_concern=concern,
+        )
+        store.put(event_namespace(CARE_TEAM_ID), event.id, event.__dict__, index=False)
+    return len(GUARDRAIL_EVENTS)
+
+
+# Pre-written so the caregiver's Today banner opens on a great line immediately,
+# rather than the first page load paying for a live LLM call. event_count must
+# match the number of today's events so app.summary treats it as a fresh cache
+# hit; once a caregiver acks a reminder live, the count changes and it refreshes.
+DAILY_SUMMARY = (
+    "Rose seems steady today — she took her morning vitamins and afternoon "
+    "medication, was in good spirits chatting about her lighthouse puzzle, and "
+    "mentioned Biscuit's been a little off his food, which I've let Linda know."
+)
+
+
+def seed_daily_summary(store, today_event_count: int) -> None:
+    store.put(
+        daily_summary_namespace(CARE_TEAM_ID),
+        now_local().date().isoformat(),
+        {"summary": DAILY_SUMMARY, "generated_at": now_local().isoformat(), "event_count": today_event_count},
+        index=False,
+    )
+
+
 # One short, warm morning exchange — cohesive with the memories and events above
 # (Biscuit, the vitamins, the puzzle). Ends on Vessa so the scheduler won't
 # immediately stack another check-in on top of it.
@@ -187,13 +236,15 @@ def main() -> int:
     n_ep = seed_episodes(store)
     n_rem = seed_reminders(store)
     n_ev = seed_events(store)
+    n_gr = seed_guardrail_events(store)
+    seed_daily_summary(store, today_event_count=n_ev)
     n_msg = seed_conversation(store, saver)
 
     print(
         f"Seeded: {n_ep} memories, {n_rem} reminders, {n_ev} Today events, "
-        f"{n_msg}-message morning conversation."
+        f"{n_gr} guardrail events (past days), a daily summary, {n_msg}-message conversation."
     )
-    print("Today status will read '⚠️ Needs attention' (the Biscuit signal). Restart the service now.")
+    print("Today reads '⚠️ Needs attention' (Biscuit signal); /proof shows guardrail activity. Restart the service now.")
     return 0
 
 

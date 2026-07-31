@@ -29,6 +29,7 @@ from app.reminders import (
     update_reminder,
 )
 from app.scheduler import companion_thread_id, start_scheduler
+from app.summary import get_or_refresh_daily_summary
 from app.visibility import list_events, status_badge, todays_events
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,7 @@ CHAT_HTML = """<!DOCTYPE html>
   </header>
   <div id="messages"></div>
   <form id="chat-form">
-    <input id="input" type="text" placeholder="Good morning..." autocomplete="off" required />
+    <input id="input" type="text" placeholder="Hi Rose, how are you?" autocomplete="off" required />
     <button type="submit">Send</button>
     <button type="button" class="secondary" id="nudge-btn" title="Trigger a check-in now instead of waiting for the scheduler">🔔 Nudge now</button>
   </form>
@@ -459,6 +460,7 @@ class EventView(BaseModel):
 class TodayView(BaseModel):
     name: str
     status: str
+    summary: str
     events: list[EventView]
 
 
@@ -469,6 +471,7 @@ def today() -> TodayView:
     return TodayView(
         name=get_profile(DEFAULT_CONTEXT.care_team_id).name,
         status=status_badge(events),
+        summary=get_or_refresh_daily_summary(store, DEFAULT_CONTEXT.care_team_id, events),
         events=[
             EventView(type=e.type, summary=e.summary, at=e.at, is_concern=e.is_concern) for e in events
         ],
