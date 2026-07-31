@@ -134,7 +134,7 @@ export default function CompanionPage() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Good morning..."
+            placeholder="Hi Rose, how are you?"
             disabled={sending}
             aria-label="Talk to Vessa"
             className="h-16 flex-1 rounded-full bg-card px-6 text-xl"

@@ -12,7 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8010";
 const POLL_INTERVAL_MS = 15000;
 
 type EventItem = { type: string; summary: string; at: string; is_concern: boolean };
-type Today = { name: string; status: "ok" | "attention"; events: EventItem[] };
+type Today = { name: string; status: "ok" | "attention"; summary: string; events: EventItem[] };
 type Reminder = { id: string; subject: string; due_at: string; status: string };
 type CaregiverNotification = { message: string; at: string };
 
@@ -137,6 +137,27 @@ export default function CareTeamPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6 md:max-w-4xl">
+      {today?.summary && (
+        <Card className="vessel-shape-sm bg-clay-soft/10 ring-1 ring-clay/15">
+          <CardContent className="flex items-start justify-between gap-4 py-5">
+            <div className="flex-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-clay">
+                {today.name} today, from Vessa
+              </p>
+              <p className="mt-1.5 text-lg leading-relaxed text-foreground">{today.summary}</p>
+            </div>
+            <Badge
+              className={
+                today.status === "attention"
+                  ? "shrink-0 bg-marigold-soft text-marigold"
+                  : "shrink-0 bg-moss-soft text-moss"
+              }
+            >
+              {today.status === "attention" ? "⚠️ Needs attention" : "🟢 OK"}
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
         <Card className="vessel-shape-sm">
           <CardHeader>
