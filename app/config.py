@@ -24,6 +24,22 @@ def now_local() -> datetime:
 LLM_MODEL = "gpt-4o-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"  # powers episodic memory semantic search (store index + companion_prompt's store.search)
 
+# --- Voice I/O (STT via OpenAI; TTS via a swappable provider — see app/voice.py) ---
+# Env-dependent values (TTS_PROVIDER, ELEVENLABS_API_KEY, VESSA_VOICE_ID) are read
+# at call time in voice.py, AFTER load_env() — never as module constants here, for
+# the same reason get_allowed_origins() is a function (config imports before env loads).
+STT_MODEL = "whisper-1"  # most tolerant of browser webm/opus (the newer gpt-4o transcribe models 400 on it)
+# Flash = low latency; for MOST-realistic voice set ELEVENLABS_MODEL=eleven_multilingual_v2 (richer, a touch slower).
+ELEVENLABS_MODEL = "eleven_flash_v2_5"
+DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # ElevenLabs "Rachel" (warm/calm) — override with VESSA_VOICE_ID
+OPENAI_TTS_MODEL = "gpt-4o-mini-tts"     # fallback provider
+OPENAI_TTS_VOICE = "shimmer"
+# gpt-4o-mini-tts honors a free-text delivery instruction — this is the warmth lever.
+OPENAI_TTS_INSTRUCTIONS = (
+    "Speak warmly and unhurriedly, like a familiar friend visiting an older adult — "
+    "gentle, calm, and reassuring. Never rushed, clipped, or clinical."
+)
+
 # Real persistence for the live app (app/persistence.py) — scripts/tests keep
 # using the in-memory defaults in agent.py, so this only affects bootstrap.py.
 SQLITE_DB_PATH = ROOT / "data" / "vessa.db"
