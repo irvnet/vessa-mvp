@@ -6,9 +6,9 @@ from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from langchain_core.messages import AIMessage
 from pydantic import BaseModel, Field
 
@@ -31,6 +31,7 @@ from app.reminders import (
 from app.scheduler import companion_thread_id, start_scheduler
 from app.summary import get_or_refresh_daily_summary
 from app.visibility import list_events, status_badge, todays_events
+from app.voice import synthesize, transcribe
 
 logger = logging.getLogger(__name__)
 
@@ -541,3 +542,27 @@ def get_proof_health() -> dict:
         "sqlite_path": str(SQLITE_DB_PATH),
         "scheduler_running": scheduler is not None and scheduler.running,
     }
+
+
+# --- Voice I/O — a thin shell around the guarded /chat: speech-to-text in,
+# text-to-speech out. The transcript is sent through the SAME agent, so nothing
+# bypasses the guardrails/memory/grounding (see app/voice.py). ---
+
+
+class SpeakRequest(BaseModel):
+    text: str = Field(min_length=1)
+
+
+@app.post("/voice/transcribe")
+def voice_transcribe(file: UploadFile = File(...)) -> dict:
+    audio = file.file.read()
+    try:
+        return {"text": transcribe(audio, filename=file.filename or "audio.webm")}
+    except Exception as e:  # a too-short/empty clip shouldn't 500 — let the user just type
+        logger.warning("Transcription failed: %s", e)
+        return {"text": ""}
+
+
+@app.post("/voice/speak")
+def voice_speak(req: SpeakRequest) -> Response:
+    return Response(content=synthesize(req.text), media_type="audio/mpeg")
