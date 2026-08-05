@@ -30,6 +30,7 @@ const SUITE_LABELS: Record<string, string> = {
   safety: "Guardrail Safety",
   grounding: "Grounding (time & identity)",
   memory: "Memory Recall",
+  reminders: "Reminder Loop",
 };
 
 function formatDateTime(iso: string) {
@@ -79,7 +80,7 @@ export default function ProofPage() {
     }
   }
 
-  const suites = ["safety", "grounding", "memory"];
+  const suites = ["safety", "grounding", "memory", "reminders"];
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6 md:max-w-2xl">

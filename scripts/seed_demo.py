@@ -64,16 +64,32 @@ def wipe_db() -> None:
 
 # --- What Vessa remembers about Rose (episodic memory) ---
 # (days_ago, note) — staggered so the recall/ordering reads naturally.
+# Deliberately more than a demo strictly needs. Proactive check-ins sample from the
+# most recent slice (app.agent.CHECKIN_EPISODE_POOL), so a thin history means every
+# check-in opens on the same topic — with only nine, Vessa greeted Rose about her rose
+# garden four times running. Breadth here is what makes "it remembers you" hold up over
+# more than one exchange. Each one is written to be answerable later: a state that can
+# have changed, so "how's that going now?" is a real question.
 EPISODES = [
+    (7, "Rose talked about her thirty years as a school librarian and the children who still write to her."),
+    (7, "Rose said the corner shop changed hands and she misses the couple who ran it."),
+    (6, "Rose watched a documentary about lighthouses that reminded her of a trip to Maine with Walt."),
+    (6, "Rose's neighbour Dorothy brought round a plate of shortbread on Sunday."),
     (5, "Rose and her daughter Linda are planning a visit to the botanical garden."),
+    (5, "Rose said Saturday's crossword was the hardest one in weeks and she left two clues unfinished."),
     (4, "Rose is looking forward to her son Mark visiting for her birthday next month."),
+    (4, "Rose told the story of meeting Walt at a church dance in 1962 — one of her favourites."),
     (3, "Rose started a 1000-piece jigsaw puzzle of a lighthouse this week."),
     (3, "Rose has been sleeping better since she moved her armchair next to the window."),
+    (3, "Rose mentioned the hallway light on her floor has been flickering."),
     (2, "Rose's cat Biscuit hasn't been eating much the last couple of days."),
     (2, "Rose mentioned her knee has been a little sore since the weekend."),
     (2, "Rose said the building elevator was out again last week and she took the stairs slowly."),
+    (2, "Rose has been doing the crossword with her morning coffee most days this week."),
     (1, "Rose spent yesterday afternoon listening to her old Glenn Miller records."),
     (1, "Rose is proud of a new bloom on her balcony rose garden."),
+    (1, "Rose got three answers before the contestants on her afternoon game show."),
+    (1, "Rose said the weather turned and she hasn't been out on the balcony as much."),
 ]
 
 
@@ -81,7 +97,7 @@ def seed_episodes(store) -> int:
     now = datetime.now(timezone.utc)
     # minutes=i keeps every key unique even when two episodes share days_ago —
     # identical keys would silently overwrite each other (one memory clobbers
-    # another), so this guarantees all six land distinctly.
+    # another), so this guarantees every episode lands distinctly.
     for i, (days_ago, note) in enumerate(EPISODES):
         key = (now - timedelta(days=days_ago, minutes=i)).isoformat()
         store.put(episode_namespace(CARE_TEAM_ID), key, {"note": note, "saved_at": key}, index=["note"])

@@ -1,3 +1,4 @@
+import random
 import re
 from datetime import datetime, timezone
 
@@ -6,6 +7,7 @@ from langchain.agents.middleware import (
     AgentState,
     ModelRequest,
     SummarizationMiddleware,
+    after_model,
     before_model,
     dynamic_prompt,
 )
@@ -21,7 +23,10 @@ from app.config import EMBEDDING_MODEL, LLM_MODEL, load_env, now_local
 from app.guardrails import input_rails_middleware, output_rails_middleware, run_output_rails
 from app.profile import CareContext, format_profile_for_prompt, get_profile
 from app.reminders import (
+    ReminderStatus,
+    acknowledge,
     acknowledge_reminder,
+    effective_status,
     format_reminders_for_prompt,
     list_reminders,
     surface_due_reminders,
@@ -55,8 +60,12 @@ Never write anything that looks like code, a function call, or a technical
 note in your reply — everything you say should read as plain, warm
 conversation, nothing else.
 
-If there are open reminders below, weave one in naturally when it fits — never
-robotic ("REMINDER: ..."), just a warm mention, like a friend nudging you. If the
+If there are open reminders below, weave one in naturally — never robotic
+("REMINDER: ..."), just a warm mention, like a friend nudging you. A reminder whose
+status is "missed", or that is due now, must be mentioned in your very next reply
+even if she's talking about something else — bring it up gently, once, after
+responding to what she actually said. ("When it fits" was too weak here: the whole
+point of the reminder is that she may not remember to raise it herself.) If the
 person confirms they've done it (in any words — "yes," "already did," "just took
 them"), call acknowledge_reminder with a short phrase describing what it was for.
 """
@@ -190,6 +199,17 @@ _TIME_QUESTION_PATTERNS = [
 ]
 _TIME_QUESTION_RE = re.compile("|".join(_TIME_QUESTION_PATTERNS), re.IGNORECASE)
 
+# How much remembered material a proactive check-in draws from. The pool is the recent
+# window; the leads are what actually goes in the prompt, sampled so repeated check-ins
+# don't all open on the same thing.
+CHECKIN_EPISODE_POOL = 12
+CHECKIN_EPISODE_LEADS = 3
+
+# Words too generic to prove a reminder was actually mentioned — "call Linda back
+# this evening" shouldn't count as surfaced just because the reply said "evening".
+_STOPWORDS = {"this", "that", "with", "your", "back", "some", "then", "when", "evening",
+              "morning", "afternoon", "today", "tomorrow", "night", "time"}
+
 
 def is_time_or_date_question(text: str) -> bool:
     return bool(_TIME_QUESTION_RE.search(text))
@@ -231,6 +251,108 @@ def time_answer_middleware(state: AgentState, runtime: Runtime) -> dict | None:
     name = get_profile(runtime.context.care_team_id).name
     answer = deterministic_time_answer(name)
     return {"messages": [AIMessage(content=answer)], "jump_to": "end"}
+
+
+# How someone actually confirms having done a thing — rarely by repeating the task.
+# "I did", "already", "just watered them": the object is usually a pronoun, which is
+# why acknowledgment can't be matched on the reminder's own words.
+_CONFIRMATION_PATTERNS = [
+    r"\b(i|we)\s+(did|have|had|already)\b",
+    r"\balready\s+(did|done|took|taken|had|watered|called)\b",
+    r"\bjust\s+(did|done|took|taken|had|watered|called|finished)\b",
+    r"\b(did|done|took|taken|watered|called|finished)\s+(it|them|that|those)\b",
+    r"\b(yes|yep|yeah|yup|mm?hm+)\b",
+    r"\ball\s+(done|set|taken care of)\b",
+    r"\btook\s+(my|the|them)\b",
+]
+_CONFIRMATION_RE = re.compile("|".join(_CONFIRMATION_PATTERNS), re.IGNORECASE)
+
+
+def _mentions_subject(reply: str, subject: str) -> bool:
+    """The model rephrases ("your vitamins", "have you taken..."), so match on content
+    words rather than the exact subject string. Every content word must appear: Rose's
+    rose garden comes up in ordinary chat, and a single shared word like "garden"
+    would otherwise suppress the nudge for "water the rose garden". Erring toward an
+    occasional redundant reminder is the right side to be wrong on."""
+    reply_lower = reply.lower()
+    content_words = [w for w in re.findall(r"[a-z]{4,}", subject.lower()) if w not in _STOPWORDS]
+    return bool(content_words) and all(w in reply_lower for w in content_words)
+
+
+@before_model
+def reminder_acknowledgment_middleware(state: AgentState, runtime: Runtime) -> dict | None:
+    """Closes the loop in code when the receiver confirms, instead of relying on the
+    model to call acknowledge_reminder — it was observed not calling it at all ("I did!
+    I watered them this morning" left the reminder sitting at 'delivered', so the
+    caregiver never saw the confirmation).
+
+    Matching on the reminder's own words doesn't work, because people confirm with
+    pronouns. What does work is context: only a reminder Vessa raised in the turn
+    immediately before counts, so "I did" is unambiguous about *what* was done.
+    Side-effect only — never alters the conversation."""
+    messages = state["messages"]
+    if not messages or messages[-1].type != "human":
+        return None
+    if not _CONFIRMATION_RE.search(str(messages[-1].content)):
+        return None
+
+    previous_ai = next(
+        (m for m in reversed(messages[:-1]) if m.type == "ai" and m.content), None
+    )
+    if previous_ai is None:
+        return None
+
+    open_reminders = [
+        r
+        for r in list_reminders(runtime.store, runtime.context.care_team_id)
+        if effective_status(r) != ReminderStatus.ACKNOWLEDGED.value
+    ]
+    raised = [r for r in open_reminders if _mentions_subject(str(previous_ai.content), r.subject)]
+    if len(raised) != 1:
+        return None  # nothing raised, or ambiguous — leave it to the model's tool call
+
+    acknowledge(runtime.store, runtime.context.care_team_id, raised[0].id)
+    return None
+
+
+@after_model
+def reminder_nudge_middleware(state: AgentState, runtime: Runtime) -> dict | None:
+    """Guarantees a due reminder actually gets said. The prompt asks for it, but
+    gpt-4o-mini was observed dropping it in favour of small talk — the same failure
+    as the AM/PM bug: the right answer sitting in the prompt, unused. A medication
+    nudge that only *usually* arrives isn't a closed loop, so when the model omits
+    it the mention is appended in code, not left to the next turn."""
+    last_message = state["messages"][-1]
+    if not isinstance(last_message, AIMessage) or last_message.tool_calls:
+        return None  # a tool call, not a draft reply
+
+    due = [
+        r
+        for r in list_reminders(runtime.store, runtime.context.care_team_id)
+        if effective_status(r)
+        in (ReminderStatus.DELIVERED.value, ReminderStatus.MISSED.value)
+    ]
+    if not due:
+        return None
+
+    reminder = min(due, key=lambda r: r.due_at)
+    reply = str(last_message.content)
+    if _mentions_subject(reply, reminder.subject):
+        return None
+
+    # Don't nudge about something she's mid-conversation about. Vessa asked whether
+    # she'd watered the garden, Rose said she had, and the nudge still appended "before
+    # I forget: water the rose garden" — a guaranteed mention is worse than none if it
+    # arrives right after she addressed it.
+    recent = [m for m in state["messages"][-3:] if m.type in ("human", "ai") and m.content]
+    if any(_mentions_subject(str(m.content), reminder.subject) for m in recent):
+        return None
+    if any(m.type == "human" and _CONFIRMATION_RE.search(str(m.content)) for m in recent):
+        return None
+
+    subject = reminder.subject[0].lower() + reminder.subject[1:]
+    nudge = f"Oh — and before I forget: {subject}, whenever suits you."
+    return {"messages": [AIMessage(content=f"{reply}\n\n{nudge}", id=last_message.id)]}
 
 
 @dynamic_prompt
@@ -313,10 +435,14 @@ def build_agent(store: InMemoryStore | None = None, checkpointer=None):
         middleware=[
             input_rails_middleware,
             unknown_person_middleware,
+            reminder_acknowledgment_middleware,
             time_answer_middleware,
             SummarizationMiddleware(model=llm, trigger=("messages", 24), keep=("messages", 16)),
             companion_prompt,
             output_rails_middleware,
+            # Listed after the output rails so its after_model hook runs *before*
+            # them — the appended nudge gets rail-checked like any other reply.
+            reminder_nudge_middleware,
         ],
         checkpointer=memory_checkpointer,
         store=memory_store,
@@ -342,11 +468,17 @@ def generate_checkin(care_team_id: str, store: InMemoryStore | None = None) -> s
     profile = get_profile(care_team_id)
     profile_text = format_profile_for_prompt(profile)
 
+    # Draw the callback material from a wider recent window and sample it, rather than
+    # always handing over the same top three. Nothing new gets remembered while she's
+    # quiet, so a fixed slice meant every check-in saw identical material and opened on
+    # the same topic — four rose-garden greetings in a row. Sampling also lets older but
+    # more openable episodes (Biscuit being off his food) actually come up.
     all_episodes = memory_store.search(episode_namespace(care_team_id))
     recent = sorted(
         all_episodes, key=lambda item: item.value.get("saved_at", ""), reverse=True
-    )[:3]
-    episodes_text = format_episodes(recent)
+    )[:CHECKIN_EPISODE_POOL]
+    chosen = random.sample(recent, min(CHECKIN_EPISODE_LEADS, len(recent)))
+    episodes_text = format_episodes(chosen)
 
     surface_due_reminders(memory_store, care_team_id)
     reminders = list_reminders(memory_store, care_team_id)

@@ -28,7 +28,7 @@ from app.reminders import (
     list_reminders,
     update_reminder,
 )
-from app.scheduler import companion_thread_id, start_scheduler
+from app.scheduler import companion_thread_id, proactive_message, start_scheduler
 from app.summary import get_or_refresh_daily_summary
 from app.visibility import list_events, status_badge, todays_events
 from app.voice import synthesize, transcribe
@@ -366,7 +366,9 @@ def checkin(thread_id: str) -> ChatResponse:
     text = generate_checkin(DEFAULT_CONTEXT.care_team_id, store=store)
 
     config = {"configurable": {"thread_id": thread_id}}
-    agent.update_state(config, {"messages": [AIMessage(content=text)]})
+    # Tagged like a scheduler push so the two are indistinguishable downstream —
+    # otherwise a manual nudge wouldn't hold off the job firing seconds later.
+    agent.update_state(config, {"messages": [proactive_message(text)]})
 
     return ChatResponse(response=text)
 
@@ -482,7 +484,7 @@ def today() -> TodayView:
 # --- Proof surface — makes safety/quality provable in-app, not just in a
 # terminal or LangSmith, so a demo-day question can be answered live. ---
 
-EVAL_SUITES = ("safety", "grounding", "memory")
+EVAL_SUITES = ("safety", "grounding", "memory", "reminders")
 
 
 @app.get("/proof/eval-results")

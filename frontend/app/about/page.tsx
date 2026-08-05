@@ -161,8 +161,9 @@ export default function AboutPage() {
             </p>
             <p>
               All of it sits on a real <strong>eval suite</strong>: golden-set tests for safety,
-              grounding, and memory, every case traced back to a real bug found in testing. And the
-              results aren't buried in a terminal — they're visible live, in the app.
+              grounding, memory, and the reminder loop, every case traced back to a real bug found
+              in testing. And the results aren't buried in a terminal — they're visible live, in
+              the app.
             </p>
           </div>
           <Link
@@ -172,6 +173,26 @@ export default function AboutPage() {
             See the proof
             <ArrowUpRight className="size-4" />
           </Link>
+        </div>
+      </section>
+
+      {/* Does she know it's an AI? */}
+      <section className="mx-auto w-full max-w-3xl px-5 py-16">
+        <p className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          Does Rose know she's talking to an AI?
+        </p>
+        <div className="mt-6 space-y-5 text-lg leading-relaxed">
+          <p>
+            <strong>Yes.</strong> Vessa never claims to be a person, never says it&rsquo;s a friend
+            or a nurse, and never pretends to have visited. If she asks what it is, it tells her.
+          </p>
+          <p>
+            There is one thing it won&rsquo;t do, and it&rsquo;s deliberate: Rose talks about her
+            late husband Walt, sometimes as though he&rsquo;s still here. Vessa doesn&rsquo;t
+            correct her. That isn&rsquo;t deception — it&rsquo;s the same judgment a kind visitor
+            would make. Honesty about what Vessa <em>is</em> and gentleness about what Rose
+            remembers are different questions, and only the first one is about trust.
+          </p>
         </div>
       </section>
 
