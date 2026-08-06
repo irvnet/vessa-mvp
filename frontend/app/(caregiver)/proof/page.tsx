@@ -87,6 +87,20 @@ export default function ProofPage() {
        is often an adult child in their sixties, and it gets screen-shared. Nothing here
        is worth showing if it can't be read at a glance. */
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-6 md:max-w-4xl">
+      {/* The page arrived as a bare dashboard, which undersold it: a family being able
+          to read the companion's own test results — and re-run them — is the unusual
+          part, and nothing on screen said so. */}
+      <div className="px-1 pt-2">
+        <h1 className="font-heading text-3xl font-extrabold text-clay sm:text-4xl">
+          Vessa checks its own work
+        </h1>
+        <p className="mt-3 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+          These are the companion's own test results, live — every case written after watching
+          that failure happen for real. Press <strong className="text-foreground">Run all now</strong>{" "}
+          and watch them run. A family shouldn't have to take a companion's word for it.
+        </p>
+      </div>
+
       <Card className="vessel-shape-sm">
         <CardHeader>
           <div className="flex items-center justify-between">

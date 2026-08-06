@@ -1,6 +1,6 @@
 # Vessa
 
-**An AI companion that's always there — a member of an older adult's care team.** A proactive companion for the care receiver, and a calm window for the family caring for them from a distance. 
+**An AI companion that speaks first.** Not a chatbot waiting to be opened — a real scheduler generates a check-in and pushes it into an ongoing conversation, leading with something she mentioned days ago. For an older adult living with early memory loss, and a calm window for the family caring for her from a distance.
 
 **Live:** [meetvessa.com](https://meetvessa.com) — [companion](https://meetvessa.com/companion) · [care team](https://meetvessa.com/care-team) · [proof](https://meetvessa.com/proof) · [about](https://meetvessa.com/about)
 
@@ -10,7 +10,7 @@
 
 Three capabilities:
 
-- **C1 — Proactive companion that remembers.** A LangGraph agent (`create_agent`),  persistent episodic memory, and a scheduler that initiates check-ins — not just a reactive chatbot.
+- **C1 — Proactive companion that remembers.** A LangGraph agent (`create_agent`),  persistent episodic memory, and a scheduler that initiates check-ins — not just a reactive chatbot. Optionally spoken: voice is I/O around the same guarded pipeline, so a proactive check-in can arrive out loud without bypassing a single rail.
 - **C2 — Scheduled reminder, closed loop.** A caregiver creates a reminder → the companion surfaces it in conversation → the receiver confirms → the caregiver sees the acknowledgment.
 - **C3 — Caregiver visibility.** A "Today" activity feed, reminder management, and a caregiver-notifications log — largely a byproduct of C1/C2's own data.
 
@@ -34,7 +34,8 @@ A companion for a Senior (espeically where there's cognitive decline) has to pro
 
 - **Layered guardrails** (`app/guardrails.py`): deterministic regex checks first (fast, free), an LLM-judgment fallback for nuance, and checks on *both* input and output — never medical diagnosis or advice, always redirected to the caregiver or a professional.
 - **Deterministic where it's computable** (`app/agent.py`): the time, the day, and whether someone is in the receiver's circle are answered in code, never guessed by the model. A wrong clock reading for someone with memory lapses reinforces disorientation rather than easing it — a fact shouldn't be left to a guess.
-- **A real eval suite, not vibes** (`scripts/eval_*.py`): golden-set regression tests for guardrail safety/tone, grounding (time/date accuracy, not inventing unknown people), and memory-recall quality — every case traces back to a real bug found in live testing. Results are visible live at `/proof`, not buried in a terminal or LangSmith. Current: **safety 10/10 · grounding 6/6 · memory 4/4**.
+- **A real eval suite, not vibes** (`scripts/eval_*.py`): golden-set regression tests for guardrail safety/tone, grounding (time/date accuracy, not inventing unknown people), memory-recall quality, and the reminder loop (surfaced warmly, still surfaced once overdue, acknowledged when confirmed) — every case traces back to a real bug found in live testing. Results are visible live at `/proof`, not buried in a terminal or LangSmith. Current: **safety 10/10 · grounding 6/6 · memory 4/4 · reminders 4/4**.
+- **Unit tests + CI** (`tests/`, `.github/workflows/ci.yml`): the deterministic paths — time grounding, the regex input rails, the reminder mention/confirmation matchers, and the scheduler's fire/hold-off guard — are covered by tests that need no API key and no network.
 
 ## Stack
 
@@ -45,6 +46,7 @@ A companion for a Senior (espeically where there's cognitive decline) has to pro
 | Memory | Embedding-based episodic recall (OpenAI embeddings + LangGraph store) |
 | Persistence | SQLite (checkpointer + store) — survives restarts |
 | Scheduler | APScheduler (in-process, proactive check-ins) |
+| Voice | OpenAI STT + TTS (ElevenLabs optional) — I/O only, wrapped around the same guarded `/chat` |
 | Backend | FastAPI, plain `uvicorn` — no Docker |
 | Frontend | Next.js + Tailwind, deployed on Vercel |
 | Deploy | EC2 (Caddy for TLS) — see [`DEPLOY.md`](DEPLOY.md) |
@@ -77,6 +79,12 @@ Run the evals:
 uv run python scripts/eval_safety.py
 uv run python scripts/eval_grounding.py
 uv run python scripts/eval_memory.py
+uv run python scripts/eval_reminders.py
+```
+
+Run the unit tests:
+```bash
+uv run pytest
 ```
 
 Deployment: see [`DEPLOY.md`](DEPLOY.md).
