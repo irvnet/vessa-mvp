@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Home, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Home } from "lucide-react";
 
+import { ScrollSnapDeck } from "@/components/scroll-snap-deck";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export const metadata = {
@@ -53,37 +54,53 @@ const STACK = [
   ["Frontend", "Next.js on Vercel"],
 ];
 
-const EXPLORE = [
-  { href: "/companion", label: "Talk to Vessa", sub: "The companion chat — Rose's view" },
-  { href: "/care-team", label: "Care Team", sub: "Reminders, today's activity, notifications" },
-  { href: "/proof", label: "Proof", sub: "Live eval results and guardrail activity" },
+// Same doors, same words, same weighting as the landing page — Rose's door is the
+// product, the other two are for whoever is looking after her.
+const EXPLORE_PRIMARY = {
+  href: "/companion",
+  label: "Talk to Vessa",
+  sub: "It remembers what matters, and checks in on its own.",
+};
+
+const EXPLORE_SECONDARY = [
+  {
+    href: "/care-team",
+    label: "Care Team",
+    sub: "Reminders, today's activity, and what Vessa noticed.",
+  },
+  { href: "/proof", label: "Proof", sub: "Eval results and guardrail activity, live." },
 ];
 
 export default function AboutPage() {
   return (
     <main className="min-h-dvh bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-5 py-5">
-        <Link
-          href="/"
-          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label="Back to home"
-        >
-          <Home className="size-5" />
-        </Link>
-        <span className="font-heading text-lg font-extrabold text-clay">Vessa</span>
-        <ThemeToggle />
+      <ScrollSnapDeck />
+      {/* Sticky: every section is a full screenful, so a header that scrolls away with
+          the hero strands the reader six panels down with no way home. */}
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-5 py-4">
+          <Link
+            href="/"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Back to home"
+          >
+            <Home className="size-6" />
+          </Link>
+          <span className="font-heading text-xl font-extrabold text-clay">Vessa</span>
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Hero — the thesis: a vessel holds what matters and brings it back. */}
-      <section className="mx-auto w-full max-w-3xl px-5 pt-10 pb-16 sm:pt-16">
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-marigold motion-safe:animate-in motion-safe:fade-in">
+      <section className="mx-auto flex min-h-dvh w-full max-w-3xl snap-start flex-col justify-center px-5 pb-16 pt-4">
+        <p className="text-xl font-bold uppercase tracking-[0.18em] text-marigold motion-safe:animate-in motion-safe:fade-in">
           A companion that remembers
         </p>
-        <h1 className="mt-5 font-heading text-4xl font-black leading-[1.08] tracking-tight sm:text-6xl motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2">
+        <h1 className="mt-5 font-heading text-5xl font-black leading-[1.08] tracking-tight sm:text-7xl motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2">
           Something to hold what matters —{" "}
           <span className="text-clay">and remember to bring it back.</span>
         </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+        <p className="mt-7 max-w-2xl text-xl leading-relaxed text-muted-foreground sm:text-2xl">
           Vessa is an AI companion for an older adult living with early memory loss, and a
           calm view for the people caring for her. The name is the whole idea: a vessel, something
           that holds and carries.
@@ -91,12 +108,12 @@ export default function AboutPage() {
       </section>
 
       {/* The stakes */}
-      <section className="border-t border-border bg-card/40">
+      <section className="flex min-h-dvh snap-start items-center border-t border-border bg-card/40">
         <div className="mx-auto w-full max-w-3xl px-5 py-16">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-xl font-bold uppercase tracking-[0.18em] text-muted-foreground">
             Why it has to be trustworthy
           </p>
-          <div className="mt-6 space-y-5 text-lg leading-relaxed">
+          <div className="mt-7 space-y-6 text-xl leading-relaxed sm:text-2xl">
             <p>
               Rose is 84. She lives alone, still independent, with early dementia — the kind where
               the day of the week slips, or a worry loops quietly back around.
@@ -115,24 +132,28 @@ export default function AboutPage() {
       </section>
 
       {/* What it does — three parallel capabilities */}
-      <section className="mx-auto w-full max-w-3xl px-5 py-16">
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+      {/* Side by side, not stacked: the three are parallel, so showing them in parallel
+          is both truer and cuts the section's height by two thirds. Cards stretch to a
+          shared height and the links sit on a common baseline, which is what made the
+          stacked version read as ragged. */}
+      <section className="mx-auto flex min-h-dvh w-full max-w-6xl snap-start flex-col justify-center px-5 py-16">
+        <p className="text-xl font-bold uppercase tracking-[0.18em] text-muted-foreground">
           What Vessa does
         </p>
-        <div className="mt-8 flex flex-col gap-5">
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
           {CAPABILITIES.map((c) => (
             <div
               key={c.verb}
-              className="vessel-shape-sm bg-card px-6 py-6 ring-1 ring-foreground/10 sm:px-8 sm:py-7"
+              className="vessel-shape-sm flex flex-col bg-card px-6 py-6 ring-1 ring-foreground/10 sm:px-7 sm:py-7"
             >
               <div className="flex items-center gap-2.5">
-                <span className={`size-2.5 rounded-full ${c.dot}`} aria-hidden />
-                <h2 className={`font-heading text-xl font-extrabold ${c.accent}`}>{c.verb}</h2>
+                <span className={`size-2.5 shrink-0 rounded-full ${c.dot}`} aria-hidden />
+                <h2 className={`font-heading text-2xl font-extrabold ${c.accent}`}>{c.verb}</h2>
               </div>
-              <p className="mt-3 text-base leading-relaxed text-foreground/85 sm:text-lg">{c.body}</p>
+              <p className="mt-3 text-lg leading-relaxed text-foreground/85">{c.body}</p>
               <Link
                 href={c.href}
-                className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-clay hover:underline"
+                className="mt-auto inline-flex items-center gap-1.5 pt-5 text-base font-bold text-clay hover:underline"
               >
                 {c.cta}
                 <ArrowUpRight className="size-4" />
@@ -143,12 +164,12 @@ export default function AboutPage() {
       </section>
 
       {/* Proven, not claimed */}
-      <section className="border-t border-border bg-card/40">
+      <section className="flex min-h-dvh snap-start items-center border-t border-border bg-card/40">
         <div className="mx-auto w-full max-w-3xl px-5 py-16">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-marigold">
+          <p className="text-xl font-bold uppercase tracking-[0.18em] text-marigold">
             Proven, not claimed
           </p>
-          <div className="mt-6 space-y-5 text-lg leading-relaxed">
+          <div className="mt-7 space-y-6 text-xl leading-relaxed sm:text-2xl">
             <p>
               Two things back the trust up. <strong>Layered guardrails</strong> keep Vessa on the
               right side of the medical line — fast deterministic checks first, an LLM judgment call
@@ -168,7 +189,7 @@ export default function AboutPage() {
           </div>
           <Link
             href="/proof"
-            className="mt-8 inline-flex items-center gap-1.5 rounded-full bg-clay px-6 py-3 text-base font-bold text-primary-foreground hover:bg-clay/90"
+            className="mt-8 inline-flex items-center gap-1.5 rounded-full bg-clay px-7 py-3.5 text-lg font-bold text-primary-foreground hover:bg-clay/90"
           >
             See the proof
             <ArrowUpRight className="size-4" />
@@ -177,11 +198,11 @@ export default function AboutPage() {
       </section>
 
       {/* Does she know it's an AI? */}
-      <section className="mx-auto w-full max-w-3xl px-5 py-16">
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+      <section className="mx-auto flex min-h-dvh w-full max-w-3xl snap-start flex-col justify-center px-5 py-16">
+        <p className="text-xl font-bold uppercase tracking-[0.18em] text-muted-foreground">
           Does Rose know she's talking to an AI?
         </p>
-        <div className="mt-6 space-y-5 text-lg leading-relaxed">
+        <div className="mt-7 space-y-6 text-xl leading-relaxed sm:text-2xl">
           <p>
             <strong>Yes.</strong> Vessa never claims to be a person, never says it&rsquo;s a friend
             or a nurse, and never pretends to have visited. If she asks what it is, it tells her.
@@ -197,38 +218,54 @@ export default function AboutPage() {
       </section>
 
       {/* Under the hood */}
-      <section className="mx-auto w-full max-w-3xl px-5 py-16">
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+      <section className="mx-auto flex min-h-dvh w-full max-w-3xl snap-start flex-col justify-center px-5 py-16">
+        <p className="text-xl font-bold uppercase tracking-[0.18em] text-muted-foreground">
           Under the hood
         </p>
-        <dl className="mt-8 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+        <dl className="mt-8 grid grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2">
           {STACK.map(([k, v]) => (
-            <div key={k} className="flex flex-col border-t border-border pt-3">
-              <dt className="text-xs font-bold uppercase tracking-wider text-marigold">{k}</dt>
-              <dd className="mt-1 text-base text-foreground/85">{v}</dd>
+            <div key={k} className="flex flex-col border-t border-border pt-4">
+              <dt className="text-lg font-bold uppercase tracking-wider text-marigold">{k}</dt>
+              <dd className="mt-2 text-2xl text-foreground/85">{v}</dd>
             </div>
           ))}
         </dl>
       </section>
 
       {/* Explore */}
-      <section className="border-t border-border bg-card/40">
+      <section className="flex min-h-dvh snap-start items-center border-t border-border bg-card/40">
         <div className="mx-auto w-full max-w-3xl px-5 py-16">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-xl font-bold uppercase tracking-[0.18em] text-muted-foreground">
             See it for yourself
           </p>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {EXPLORE.map((e) => (
+          <Link
+            href={EXPLORE_PRIMARY.href}
+            className="vessel-shape group mt-8 flex items-center gap-6 border-2 border-clay bg-clay-soft/15 px-8 py-9 transition-colors hover:bg-clay-soft/25 sm:px-12"
+          >
+            <span className="flex-1">
+              <span className="block font-heading text-3xl font-extrabold text-clay sm:text-4xl">
+                {EXPLORE_PRIMARY.label}
+              </span>
+              <span className="mt-2 block text-lg leading-snug text-muted-foreground">
+                {EXPLORE_PRIMARY.sub}
+              </span>
+            </span>
+            <ArrowRight className="size-8 shrink-0 text-clay transition-transform motion-safe:group-hover:translate-x-1" />
+          </Link>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {EXPLORE_SECONDARY.map((e) => (
               <Link
                 key={e.href}
                 href={e.href}
-                className="vessel-shape-sm group flex flex-col bg-card px-5 py-5 ring-1 ring-foreground/10 transition-shadow hover:shadow-md"
+                className="vessel-shape-sm border border-border bg-card px-6 py-6 transition-shadow hover:shadow-md"
               >
-                <span className="flex items-center justify-between font-heading text-lg font-extrabold text-clay">
+                <span className="block font-heading text-xl font-extrabold text-clay">
                   {e.label}
-                  <ArrowUpRight className="size-4 text-muted-foreground transition-colors group-hover:text-clay" />
                 </span>
-                <span className="mt-1 text-sm text-muted-foreground">{e.sub}</span>
+                <span className="mt-1.5 block text-base leading-snug text-muted-foreground">
+                  {e.sub}
+                </span>
               </Link>
             ))}
           </div>

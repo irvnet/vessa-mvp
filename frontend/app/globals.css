@@ -172,3 +172,40 @@
     border-radius: 1.1rem 1.4rem 0.9rem 1.25rem;
   }
 }
+
+/* The About page presents itself: each section is a screenful and Page Down advances
+   to the next, so the story can be walked through on a call without a slide deck.
+   Applied to <html> by components/scroll-snap-deck.tsx and scoped to that route.
+   Turned off under reduced-motion — being pulled to the next panel is disorienting
+   for exactly the people this product is built for. */
+/* The root layout sets html{height:100%} and body{min-height:100%}, so the html box
+   never overflows and snapping declared on it alone has nothing to scroll. Declare it
+   on both and let whichever element is the actual scrollport take effect; height:auto
+   on html hands scrolling to the document without disturbing the body's flex column. */
+/* Proximity, not mandatory: mandatory fights trackpad momentum — every flick gets
+   yanked to a panel and free scrolling feels broken. Proximity tidies up the landing
+   without taking the scroll away, and the on-screen controls handle precise stepping. */
+html.snap-deck {
+  height: auto;
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+  /* Clears the sticky header so a snapped section doesn't land underneath it. */
+  scroll-padding-top: 4.5rem;
+}
+
+html.snap-deck body {
+  scroll-snap-type: y proximity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.snap-deck {
+    scroll-behavior: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.snap-deck,
+  html.snap-deck body {
+    scroll-snap-type: none;
+  }
+}
